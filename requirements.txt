@@ -1,0 +1,7 @@
+sentence_transformers
+groq
+langchain-groq
+langchain
+langchain-community 
+supabase
+langdetect
