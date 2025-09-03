@@ -2,9 +2,9 @@ from langchain.prompts import ChatPromptTemplate
 from backend.retrievers.supabase_store import doc_store  
 from backend.models.llms.groq_llm import GroqLLM
 import logging as logger
+from backend.core.graph_states import RAGState
 
-
-def summary_node(state: dict) -> dict:
+def summary_node(state:  RAGState) ->  RAGState:
     llm = GroqLLM()
 
     # 1. Get query string from state (NOT documents)

@@ -4,9 +4,10 @@ from backend.config import GLOBAL_K
 from backend.models.reranker_model.reranker import Reranker
 from backend.models.llms.groq_llm import GroqLLM
 import logging as logger
+from backend.core.graph_states import RAGState
 
 
-def chat_node(state: dict) -> dict:
+def chat_node(state: RAGState) -> dict:
     """
     Chat node:
     - Retrieve and rerank relevant chunks for the user query
