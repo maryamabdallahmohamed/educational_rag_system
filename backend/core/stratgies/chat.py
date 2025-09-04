@@ -7,11 +7,12 @@ import logging as logger
 from backend.core.graph_states import RAGState
 from backend.utils.prompt_loader import PromptLoader
 
+
 def chat_node(state: RAGState) -> dict:
     """
     Chat node:
     - Retrieve and rerank relevant chunks for the user query
-    - Ensure responses use document metadata.language
+    - Decide whether to use RAG or fallback to LLM knowledge
     - Save the answer and sources into state
     """
     query = state["query"]
@@ -21,29 +22,52 @@ def chat_node(state: RAGState) -> dict:
     llm = GroqLLM()
     
     # Load system-level rules
-    system_prompt = PromptLoader.load_system_prompt("backend/utils/prompts/chat_prompt.yaml")
+    rag_system_prompt = PromptLoader.load_system_prompt("prompts/rag_prompt.yaml")
+    chat_prompt = PromptLoader.load_system_prompt("prompts/chat_prompt.yaml")
 
     # Step 1. Retrieve chunks
     retrieved_chunks = chunk_store.similarity_search(query, GLOBAL_K)
+
+    if not retrieved_chunks:
+        logger.info("⚠️ No chunks retrieved → using LLM knowledge only.")
+        messages = [
+            ("system", chat_prompt),
+            ("user", f"Query: {query}\n\nAnswer (use your own knowledge) and message history if found:")
+        ]
+        state["answer"] = llm.invoke(messages)
+        return state
+
+    # Step 2. Rerank chunks
     reranked_chunks = reranker.rerank_chunks(query, retrieved_chunks)
 
-    context_parts = []
-    for chunk in reranked_chunks:
-        lang = chunk.metadata.get("language", "ar") 
-        content = chunk.page_content
-        context_parts.append(f"[Language: {lang}] {content}")
+    # Step 3. Check rerank confidence
+    top_score = reranked_chunks[0].metadata["rerank_score"] if reranked_chunks else 0.0
+    score_threshold = 0.7  
+    use_rag = top_score >= score_threshold
+
+    if use_rag:
+        logger.info(f"✅ Using RAG (top rerank score={top_score:.3f})")
+        context_parts = []
+        for chunk in reranked_chunks:
+            lang = chunk.metadata.get("language", "ar") 
+            content = chunk.page_content
+            context_parts.append(f"[Language: {lang}] {content}")
+
+        context = "\n\n".join(context_parts)
+
+        messages = [
+            ("system", rag_system_prompt),
+            ("user", f"Query: {query}\n\nContext:\n{context}\n\nAnswer:")
+        ]
+    else:
+        logger.info(f"⚠️ Low rerank score ({top_score:.3f}) → using LLM knowledge only.")
+        messages = [
+            ("system", chat_prompt),
+            ("user", f"Query: {query}\n\nAnswer (use your own knowledge):")
+        ]
 
 
-    context = "\n\n".join(context_parts)
-
-    # Step 3. Build prompt
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("user", f"Query: {query}\n\nContext:\n{context}\n\nAnswer:")
-    ])
-
-    # Step 4. Invoke model
-    state["answer"] = llm.invoke(prompt.format_messages())
+    state["answer"] = llm.invoke(messages)
 
     logger.info("✅ Chat response generated successfully")
     return state

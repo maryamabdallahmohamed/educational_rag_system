@@ -37,6 +37,4 @@ class Reranker:
                     }
                 )
             )
-
-        logger.info(f"✅ Chunks reranked - Best score: {reranked_docs[0].metadata['rerank_score']:.3f}")
         return reranked_docs
