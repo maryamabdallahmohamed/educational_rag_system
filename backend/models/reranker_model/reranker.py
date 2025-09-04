@@ -10,30 +10,33 @@ class Reranker:
         self.reranker = CrossEncoder(model_name, cache_folder=str(CACHE_DIR))
         logger.info("✅ Reranker model loaded successfully")
 
+
+
     def rerank_chunks(self, query, chunks):
         """
         Rerank the retrieved chunks using BGE reranker.
-        Returns chunks sorted by relevance score.
+        Returns a list of Document objects sorted by relevance score.
         """        
         logger.info(f"🔄 Reranking {len(chunks)} chunks...")
         
-        # Prepare query-passage pairs for reranking
+
         pairs = [(query, chunk.page_content) for chunk in chunks]
 
         scores = self.reranker.predict(pairs)
         scored_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
 
-        reranked_chunks = [
-            {
-                "page_content": chunk.page_content,
-                "metadata": {
-                    **(chunk.metadata or {}), 
-                    "rerank_score": float(score),
-                    "rerank_position": i + 1,
-                }
-            }
-            for i, (chunk, score) in enumerate(scored_chunks)
-        ]
+        reranked_docs = []
+        for i, (chunk, score) in enumerate(scored_chunks):
+            reranked_docs.append(
+                Document(
+                    page_content=chunk.page_content,
+                    metadata={
+                        **(chunk.metadata or {}),
+                        "rerank_score": float(score),
+                        "rerank_position": i + 1,
+                    }
+                )
+            )
 
-        logger.info(f"✅ Chunks reranked - Best score: {reranked_chunks[0]['metadata']['rerank_score']:.3f}")
-        return reranked_chunks
+        logger.info(f"✅ Chunks reranked - Best score: {reranked_docs[0].metadata['rerank_score']:.3f}")
+        return reranked_docs

@@ -3,6 +3,7 @@ from datetime import datetime
 from langgraph.types import RunnableConfig
 from backend.core.graph_states import RAGState
 from backend.loaders.json_loader import JSONPreprocessor
+from backend.utils.language_detection import returnlang
 from langchain.schema import Document
 
 def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
@@ -50,9 +51,9 @@ def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
         print("⚠️ No valid file paths found. Skipping document loading.")
         return state
 
-    print(f"Loading documents from: {valid_paths}")  # Debug print
+    print(f"Loading documents from: {valid_paths}") 
 
-    # 4️⃣ Load documents (iterate each file, wrap as Document)
+    # Load documents 
     preprocessor = JSONPreprocessor()
     loaded_docs = []
     for path in valid_paths:
@@ -65,6 +66,7 @@ def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
                         metadata={
                             "source": path,
                             "loaded_at": datetime.now().isoformat(),
+                            "language": returnlang(content)
                         },
                     )
                 )
