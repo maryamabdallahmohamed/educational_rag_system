@@ -18,8 +18,8 @@ def QA(state: RAGState):
         state["answer"] = "No document found to generate Q&A."
         return state
 
-    # 3. Take the first document’s full content
-    context = docs[0].page_content
+
+    context = "\n\n".join(doc.page_content for doc in docs)
 
     # 4. Build Q&A generation prompt
     prompt = ChatPromptTemplate.from_messages([

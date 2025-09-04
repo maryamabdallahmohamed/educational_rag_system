@@ -18,7 +18,7 @@ def summary_node(state:  RAGState) ->  RAGState:
         return state
 
     # 3. Take the first document’s full content
-    context = docs[0].page_content
+    context = "\n\n".join(doc.page_content for doc in docs)
 
     # 4. Build summarization prompt
     prompt = ChatPromptTemplate.from_messages([
