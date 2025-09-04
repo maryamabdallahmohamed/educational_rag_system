@@ -4,10 +4,10 @@ from backend.core.nodes.loader import load_node
 from backend.core.nodes.chunker import chunk_node
 from backend.core.nodes.db_loader import db_add_node
 from backend.core.nodes.router import router_node
-from backend.core.nodes.chat import chat_node
-from backend.core.nodes.qa_generator import QA
+from backend.core.stratgies.chat import chat_node
+from backend.core.stratgies.qa_generator import QA
 from langgraph.types import RunnableConfig
-from backend.core.nodes.summarizer import summary_node
+from backend.core.stratgies.summarizer import summary_node
 
 
 def router_decision(state: RAGState) -> str:
