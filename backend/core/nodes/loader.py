@@ -7,16 +7,19 @@ from backend.utils.language_detection import returnlang
 from langchain.schema import Document
 
 def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
-    """Load documents from file paths specified in state or config."""
+    """Load only not-yet-ingested documents from file paths in state/config.
 
-    # 1️⃣ Get file paths from state first, then from config
+    Stores freshly loaded docs in state["new_documents"] so downstream nodes can
+    add only new chunks/DB rows. Persistent totals remain in state["documents"].
+    """
+
+    # Get file paths from state first, then from config
     file_paths = state.get("file_paths")
 
     if not file_paths and config:
         configurable = config.get("configurable", {})
         file_paths = configurable.get("file_paths")
 
-    # 2️⃣ Normalize to list of strings (flatten if nested)
     if file_paths is None:
         file_paths = []
     elif isinstance(file_paths, str):
@@ -34,8 +37,9 @@ def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
         print(f"⚠️ Unexpected file_paths type: {type(file_paths)}")
         file_paths = []
 
-    # 3️⃣ Filter out invalid paths
+    # 3️⃣ Filter out invalid paths and those already ingested
     valid_paths = []
+    already = set(state.get("ingested_sources") or [])
     for path in file_paths:
         if not isinstance(path, str):
             print(f"⚠️ Skipping non-string path: {path}")
@@ -44,11 +48,13 @@ def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
             print(f"⚠️ Path does not exist: {path}")
         elif os.path.isdir(path):
             print(f"⚠️ Skipping directory: {path}")
+        elif path in already:
+            continue
         else:
             valid_paths.append(path)
 
     if not valid_paths:
-        print("⚠️ No valid file paths found. Skipping document loading.")
+        # Nothing new to load
         return state
 
     print(f"Loading documents from: {valid_paths}") 
@@ -75,10 +81,6 @@ def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
         except Exception as e:
             print(f"❌ Failed to load {path}: {e}")
 
-    if "documents" not in state:
-        state["documents"] = []
-
-    state["documents"].extend(loaded_docs)
-
-
+    if loaded_docs:
+        state["new_documents"] = (state.get("new_documents") or []) + loaded_docs
     return state
