@@ -4,12 +4,12 @@ from langchain.schema import Document
 from backend.utils.language_detection import returnlang
 
 def chunk_node(state: RAGState) -> RAGState:
-    if "documents" not in state or not state["documents"]:
-        print("⚠️ No documents to chunk. Skipping.")
+    new_docs = state.get("new_documents") or []
+    if not new_docs:
         return state
-    
+
     all_chunks = []
-    for doc in state["documents"]:
+    for doc in new_docs:
         chunks = document_chunk(doc.page_content)
         for i, chunk in enumerate(chunks):
             chunk_doc = Document(
@@ -21,5 +21,5 @@ def chunk_node(state: RAGState) -> RAGState:
                 }
             )
             all_chunks.append(chunk_doc)
-    state["chunks"] = all_chunks
+    state["new_chunks"] = (state.get("new_chunks") or []) + all_chunks
     return state
