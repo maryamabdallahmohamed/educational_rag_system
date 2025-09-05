@@ -6,7 +6,6 @@ from backend.core.nodes.db_loader import db_add_node
 from backend.core.nodes.router import router_node
 from backend.core.stratgies.chat import chat_node
 from backend.core.stratgies.qa_generator import QA
-from langgraph.types import RunnableConfig
 from backend.core.stratgies.summarizer import summary_node
 
 
@@ -21,50 +20,79 @@ def router_decision(state: RAGState) -> str:
     }
     return routes.get(state.get("task_choice", "").lower(), "chat")
 
+def should_ingest(state: RAGState) -> str:
+    """Decide whether to run ingestion based on new file paths not yet seen."""
+    file_paths = state.get("file_paths") or []
+    seen = set(state.get("ingested_sources") or [])
+    new_paths = [p for p in file_paths if p not in seen]
+    return "ingest" if len(new_paths) > 0 else "router"
+
+
+def mark_ingested_node(state: RAGState) -> RAGState:
+    """Update state to mark any provided file_paths as ingested and merge new docs/chunks."""
+    file_paths = state.get("file_paths") or []
+    already = set(state.get("ingested_sources") or [])
+    updated = list(already.union(file_paths))
+    state["ingested_sources"] = updated
+    # Merge newly produced docs/chunks into persistent lists
+    if state.get("new_documents"):
+        docs = state.get("documents") or []
+        docs.extend(state["new_documents"]) 
+        state["documents"] = docs
+        state.pop("new_documents", None)
+    if state.get("new_chunks"):
+        chunks = state.get("chunks") or []
+        chunks.extend(state["new_chunks"]) 
+        state["chunks"] = chunks
+        state.pop("new_chunks", None)
+    state["ingested"] = True
+    return state
+
+
 
 def build_rag_graph():
-    """Build and compile the RAG graph with memory."""
+    """Build and compile the RAG graph with conditional ingestion."""
     graph = StateGraph(RAGState)
 
-    # Add nodes
+    # Ingestion nodes
     graph.add_node("load", load_node)
     graph.add_node("chunk", chunk_node)
     graph.add_node("db", db_add_node)
+    graph.add_node("mark_ingested", mark_ingested_node)
+    # Query nodes
     graph.add_node("router", router_node)
     graph.add_node("chat", chat_node)
     graph.add_node("QA", QA)
     graph.add_node("summarise", summary_node)
-    
 
-    # Add edges
-    graph.add_edge(START, "load")
+    # Decide start path: ingestion or query
+    graph.add_conditional_edges(
+        START,
+        should_ingest,
+        {"ingest": "load", "router": "router"},
+    )
+
+    # Ingestion chain
     graph.add_edge("load", "chunk")
     graph.add_edge("chunk", "db")
-    graph.add_edge("db", "router")
+    graph.add_edge("db", "mark_ingested")
+    graph.add_edge("mark_ingested", "router")
 
-    # Conditional routing
+    # Router → Query handlers
     graph.add_conditional_edges(
         "router",
         router_decision,
-        {
-            "chat": "chat",
-            "QA": "QA",
-            "summarise": "summarise",
-        }
+        {"chat": "chat", "QA": "QA", "summarise": "summarise"},
     )
 
-    # End edges
+    # End states
     graph.add_edge("chat", END)
     graph.add_edge("QA", END)
     graph.add_edge("summarise", END)
 
-    # Compile with memory
     return graph.compile()
 
-
-# Create the compiled graph
-app = build_rag_graph()
-
+app= build_rag_graph()
 if __name__ == "__main__":
     print("🟢 Welcome to the RAG Chatbot! Type 'exit' to quit.\n")
 
