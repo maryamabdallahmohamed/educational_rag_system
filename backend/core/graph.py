@@ -7,7 +7,7 @@ from backend.core.nodes.router import router_node
 from backend.core.stratgies.chat import chat_node
 from backend.core.stratgies.qa_generator import QA
 from backend.core.stratgies.summarizer import summary_node
-
+from backend.core.nodes.db_nodes.nodes import init_conversation_node , chatbot_node
 
 def router_decision(state: RAGState) -> str:
     """Decide which node to route to based on task choice."""
@@ -49,27 +49,34 @@ def mark_ingested_node(state: RAGState) -> RAGState:
     return state
 
 
-
 def build_rag_graph():
-    """Build and compile the RAG graph with conditional ingestion."""
+    """Build and compile the RAG graph with conditional ingestion and logging."""
     graph = StateGraph(RAGState)
+
+
+    graph.add_node("init_conversation", init_conversation_node)
+    graph.add_node("chatbot", chatbot_node)
 
     # Ingestion nodes
     graph.add_node("load", load_node)
     graph.add_node("chunk", chunk_node)
     graph.add_node("db", db_add_node)
     graph.add_node("mark_ingested", mark_ingested_node)
+
     # Query nodes
     graph.add_node("router", router_node)
     graph.add_node("chat", chat_node)
     graph.add_node("QA", QA)
     graph.add_node("summarise", summary_node)
 
-    # Decide start path: ingestion or query
+  
     graph.add_conditional_edges(
         START,
         should_ingest,
-        {"ingest": "load", "router": "router"},
+        {
+            "ingest": "load",
+            "router": "router",
+        },
     )
 
     # Ingestion chain
@@ -82,15 +89,34 @@ def build_rag_graph():
     graph.add_conditional_edges(
         "router",
         router_decision,
-        {"chat": "chat", "QA": "QA", "summarise": "summarise"},
+        {
+            "chat": "init_conversation",
+            "QA": "init_conversation",
+            "summarise": "init_conversation",
+        },
     )
 
-    # End states
-    graph.add_edge("chat", END)
-    graph.add_edge("QA", END)
-    graph.add_edge("summarise", END)
+    # Conversation init → handler
+    graph.add_conditional_edges(
+        "init_conversation",
+        router_decision,   # reuse router_decision to branch again
+        {
+            "chat": "chat",
+            "QA": "QA",
+            "summarise": "summarise",
+        },
+    )
+
+    # After handler → log message
+    graph.add_edge("chat", "chatbot")
+    graph.add_edge("QA", "chatbot")
+    graph.add_edge("summarise", "chatbot")
+
+    # ✅ End state
+    graph.add_edge("chatbot", END)
 
     return graph.compile()
+
 
 app= build_rag_graph()
 if __name__ == "__main__":

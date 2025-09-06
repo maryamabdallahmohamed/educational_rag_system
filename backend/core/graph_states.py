@@ -17,5 +17,7 @@ class RAGState(TypedDict, total=False):
     ingested_sources: List[str]
     new_documents: List[Document]
     new_chunks: List[Document]
+    conversation_id: str
+
 
 

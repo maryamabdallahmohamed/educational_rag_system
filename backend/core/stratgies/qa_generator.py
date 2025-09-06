@@ -52,12 +52,12 @@ def QA(state: RAGState) -> RAGState:
         logger.info("✅ Q&A generation successful")
     except Exception as e:
         logger.error(f"❌ LLM call failed: {e}")
-        state["qa_pairs"] = []
+
         state["answer"] = "Error during Q&A generation."
         return state
 
     # 9. Store results
-    state["qa_pairs"] = llm_response
-    state["answer"] = "Generated Q&A pairs successfully."
+
+    state["answer"] = llm_response
 
     return state
