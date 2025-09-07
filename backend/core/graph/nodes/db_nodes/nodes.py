@@ -1,4 +1,4 @@
-from backend.retrievers.supabase_store import create_conversation, log_message
+from backend.data.stores.supabase_store import create_conversation, log_message
 import uuid
 
 def init_conversation_node(state: dict) -> dict:
