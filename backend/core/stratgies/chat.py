@@ -1,11 +1,11 @@
 from langchain.prompts import ChatPromptTemplate
-from backend.retrievers.supabase_store import chunk_store
+from backend.data.stores.supabase_store import chunk_store
 from backend.config import GLOBAL_K
 from backend.models.reranker_model.reranker import Reranker
 from backend.models.llms.groq_llm import GroqLLM
 import logging as logger
-from backend.core.graph_states import RAGState
-from backend.utils.prompt_loader import PromptLoader
+from backend.core.graph.states.graph_states import RAGState
+from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 
 
 def chat_node(state: RAGState) -> dict:

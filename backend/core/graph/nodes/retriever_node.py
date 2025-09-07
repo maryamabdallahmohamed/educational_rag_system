@@ -1,5 +1,5 @@
-from backend.core.graph_states import RAGState
-from backend.retrievers.supabase_store import chunk_store
+from backend.core.graph.states.graph_states import RAGState
+from backend.data.stores.supabase_store import chunk_store
 
 
 def retrieve_node(state: RAGState) -> RAGState:

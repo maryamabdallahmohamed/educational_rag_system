@@ -1,18 +1,19 @@
+
 from langgraph.graph import StateGraph, START, END
-from backend.core.graph_states import RAGState
-from backend.core.nodes.loader import load_node
-from backend.core.nodes.chunker import chunk_node
-from backend.core.nodes.db_loader import db_add_node
-from backend.core.nodes.router import router_node
+from backend.core.graph.states.graph_states import RAGState
+from backend.core.graph.nodes.loader import load_node
+from backend.core.graph.nodes.chunker import chunk_node
+from backend.core.graph.nodes.db_loader import db_add_node
+from backend.core.graph.nodes.router import router_node
+from backend.core.graph.nodes.db_nodes.nodes import init_conversation_node, chatbot_node
 from backend.core.stratgies.chat import chat_node
 from backend.core.stratgies.qa_generator import QA
 from backend.core.stratgies.summarizer import summary_node
-from backend.core.nodes.db_nodes.nodes import init_conversation_node , chatbot_node
-
 def router_decision(state: RAGState) -> str:
     """Decide which node to route to based on task choice."""
     routes = {
         "summarize": "summarise",
+
         "summarise": "summarise",
         "qa": "QA",
         "question_answer": "QA",

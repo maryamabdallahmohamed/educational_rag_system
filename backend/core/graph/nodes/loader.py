@@ -1,9 +1,9 @@
 import os
 from datetime import datetime
 from langgraph.types import RunnableConfig
-from backend.core.graph_states import RAGState
-from backend.loaders.json_loader import JSONPreprocessor
-from backend.utils.language_detection import returnlang
+from backend.core.graph.states.graph_states import RAGState
+from backend.loaders.document_loaders.json_loader import JSONPreprocessor
+from backend.utils.helpers.language_detection import returnlang
 from langchain.schema import Document
 
 def load_node(state: RAGState, config: RunnableConfig = None) -> RAGState:

@@ -1,8 +1,8 @@
 from langchain.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 import logging as logger
-from backend.core.graph_states import RAGState
-from backend.utils.prompt_loader import PromptLoader
+from backend.core.graph.states.graph_states import RAGState
+from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 
 
 def summary_node(state: RAGState) -> RAGState:

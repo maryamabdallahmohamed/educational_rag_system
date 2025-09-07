@@ -1,7 +1,7 @@
-from backend.core.graph_states import RAGState
-from backend.loaders.base import document_chunk
+from backend.core.graph.states.graph_states import RAGState
+from backend.loaders.document_loaders.base import document_chunk
 from langchain.schema import Document
-from backend.utils.language_detection import returnlang
+from backend.utils.helpers.language_detection import returnlang
 
 def chunk_node(state: RAGState) -> RAGState:
     new_docs = state.get("new_documents") or []

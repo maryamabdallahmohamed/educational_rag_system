@@ -1,7 +1,7 @@
-from backend.core.graph_states import RAGState
+from backend.core.graph.states.graph_states import RAGState
 from backend.models.embedders.hf_embedder import HFEmbedder
 from langchain.schema import Document
-from backend.retrievers.supabase_store import supabase, chunk_store, doc_store
+from backend.data.stores.supabase_store import supabase, chunk_store, doc_store
 
 embedder_model = HFEmbedder()
 

@@ -1,4 +1,4 @@
-from backend.core.graph_states import RAGState
+from backend.core.graph.states.graph_states import RAGState
 def router_node(state: RAGState) -> RAGState:
     """
     Determines the user-selected task:
