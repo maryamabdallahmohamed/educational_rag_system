@@ -2,8 +2,7 @@
 from langgraph.graph import StateGraph, START, END
 from backend.core.graph.states.graph_states import RAGState
 from backend.core.graph.nodes.loader import load_node
-from backend.core.graph.nodes.chunker import chunk_node
-from backend.core.graph.nodes.db_loader import db_add_node
+from backend.core.graph.nodes.db_loader import chunk_and_store_node
 from backend.core.graph.nodes.router import router_node
 from backend.core.graph.nodes.db_nodes.nodes import init_conversation_node, chatbot_node
 from backend.core.stratgies.chat import chat_node
@@ -60,8 +59,7 @@ def build_rag_graph():
 
     # Ingestion nodes
     graph.add_node("load", load_node)
-    graph.add_node("chunk", chunk_node)
-    graph.add_node("db", db_add_node)
+    graph.add_node("db and store", chunk_and_store_node)
     graph.add_node("mark_ingested", mark_ingested_node)
 
     # Query nodes
@@ -81,9 +79,8 @@ def build_rag_graph():
     )
 
     # Ingestion chain
-    graph.add_edge("load", "chunk")
-    graph.add_edge("chunk", "db")
-    graph.add_edge("db", "mark_ingested")
+    graph.add_edge("load", "db and store")
+    graph.add_edge("db and store", "mark_ingested")
     graph.add_edge("mark_ingested", "router")
 
     # Router → Query handlers
