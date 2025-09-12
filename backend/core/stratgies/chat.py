@@ -1,6 +1,6 @@
 from langchain.prompts import ChatPromptTemplate
 from backend.data.stores.supabase_store import chunk_store
-from backend.config import GLOBAL_K
+from backend__.config import GLOBAL_K
 from backend.models.reranker_model.reranker import Reranker
 from backend.models.llms.groq_llm import GroqLLM
 import logging as logger

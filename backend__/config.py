@@ -1,5 +1,7 @@
 import torch
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 if torch.backends.mps.is_available():
     DEVICE = "mps"   # Apple Silicon
 elif torch.cuda.is_available():
