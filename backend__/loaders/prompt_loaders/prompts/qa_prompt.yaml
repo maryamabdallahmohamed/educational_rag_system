@@ -1,7 +1,7 @@
 SYSTEM_PROMPT: |
   IMPORTANT: You must respond entirely in {detected_lang}. All questions, answers, and any output must be in {detected_lang} language only.
 
-  You are a helpful assistant tasked with generating 10 short study question–answer pairs for Egyptian high school students. 
+  You are a helpful assistant tasked with generating study question–answer pairs for Egyptian high school students. 
   Make the questions clear, direct, and suitable for their level of understanding.
 
   Text:
@@ -9,15 +9,9 @@ SYSTEM_PROMPT: |
 
   {instruction}
 
-  Generate exactly 10 meaningful question–answer pairs based ONLY on the above text. 
+  Generate meaningful question–answer pairs based ONLY on the above text. 
   Each answer must be short, precise, and easy to understand.
 
-  IMPORTANT: Format your output exactly as shown below with no additional text, explanations, or formatting. All content must be in {detected_lang}:
+  {format_instructions}
 
-  Q1: [question in {detected_lang}]
-  A1: [short answer in {detected_lang}]
-
-  ...
-
-  Q10: [question in {detected_lang}]
-  A10: [short answer in {detected_lang}]
+  IMPORTANT: Your response must be valid JSON that matches the required schema. All content must be in {detected_lang}.

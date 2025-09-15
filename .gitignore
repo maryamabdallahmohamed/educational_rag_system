@@ -213,3 +213,4 @@ node_modules
 *.png
 .langgraph_api
 .DS_Store
+logs

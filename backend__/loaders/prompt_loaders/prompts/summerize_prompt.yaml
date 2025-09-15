@@ -17,3 +17,14 @@ SYSTEM_PROMPT: |
   Instruction: {instruction}
 
   Language: {detected_lang}
+
+ Important rules:
+  - Respond ONLY with valid JSON
+  - No additional text before or after the JSON
+  - Use the specified language: {detected_lang}
+  - Make the summary comprehensive but concise
+  
+  {format_instructions}
+  
+
+

@@ -2,7 +2,7 @@
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from backend__.models.llms.groq_llm import GroqLLM
-from backend__.core.states.graph_states import LearningUnit,UnitGenerationState
+from backend__.core.states.graph_states import LearningUnit, RAGState
 import uuid
 from backend__.db.connect_db import run_query
 from langchain_core.runnables import RunnableLambda
@@ -10,7 +10,8 @@ from backend__.utils.helpers.language_detection import returnlang
 
 class UnitStructureGenerator:
     def __init__(self):
-        self.llm = GroqLLM()
+        self.llm_wrapper = GroqLLM()
+        self.llm = self.llm_wrapper.llm  
         self.parser = JsonOutputParser(pydantic_object=LearningUnit)
 
         
@@ -50,6 +51,7 @@ class UnitStructureGenerator:
         - Each unit must follow the exact schema provided
         - Ensure consistency across all units
         - Make content age-appropriate for the specified grade level
+        - DIFFICULTY LEVELS MUST BE IN ENGLISH: "easy", "medium", or "hard"
 
         {format_instructions}
 
@@ -58,8 +60,6 @@ class UnitStructureGenerator:
             )
 
         self.unit_generation_chain = self.base_prompt | self.llm | self.parser
-
-
 
     async def _generate_units(self, content: str, metadata, adaptation_instruction=None) :
         """
@@ -97,6 +97,7 @@ class UnitStructureGenerator:
                 return [single_unit]
             except:
                 raise e
+
     def _validate_units(self, units, metadata) :
         """
         Validate and ensure consistent schema across all units
@@ -173,36 +174,77 @@ class UnitStructureGenerator:
 
         return stored_units
 
+    def _fix_unit_schema(self, unit, metadata):
+        """Fix common schema issues in generated units"""
+        # Add default values for missing fields
+        fixed_unit = {
+            "title": unit.get("title", "Untitled Unit"),
+            "subtopics": unit.get("subtopics", []),
+            "detailed_explanation": unit.get("detailed_explanation", ""),
+            "key_points": unit.get("key_points", []),
+            "difficulty_level": unit.get("difficulty_level", "medium"),
+            "learning_objectives": unit.get("learning_objectives", []),
+            "keywords": unit.get("keywords", [])
+        }
+        
+        # Add metadata and IDs
+        fixed_unit.update({
+            "unit_id": str(uuid.uuid4()),
+            "subject": metadata.get("subject", "General"),
+            "grade_level": metadata.get("grade_level", 10),
+            "source_document_id": metadata.get("document_id"),
+            "created_at": "now()",
+            "adaptation_applied": metadata.get("adaptation_instruction") is not None
+        })
+        
+        return fixed_unit
 
-    async def unit_structure_generator_node(self, state: UnitGenerationState) -> UnitGenerationState:
+    async def unit_structure_generator_node(self, state: RAGState) -> RAGState:
         """
         LangGraph node that converts document content into structured learning units
         """
         try:
-            # Extract inputs from state
-            content = state["document_content"]
-            metadata = state.get("metadata", {})
-
-            adaptation_instruction = state.get("adaptation_instruction", "")
+            # Extract documents from RAGState
+            documents = state.get("documents", [])
+            new_documents = state.get("new_documents", [])
+            
+            # Combine all documents
+            all_documents = documents + new_documents
+            
+            if not all_documents:
+                state["answer"] = "No documents available to generate learning units."
+                return state
+            
+            # Combine all document content
+            content = "\n\n".join(doc.page_content for doc in all_documents)
+            
+            # Create metadata from the first document
+            metadata = all_documents[0].metadata if all_documents else {}
+            metadata.update({
+                "subject": metadata.get("subject", "General"),
+                "grade_level": metadata.get("grade_level", "12"),
+                "document_id": metadata.get("source", "unknown")
+            })
+            
+            adaptation_instruction = state.get("query", "")
             
             # Generate structured units
-            units = await self._generate_units(content, metadata)
+            units = await self._generate_units(content, metadata, adaptation_instruction)
             
             # Validate and clean units
             validated_units = self._validate_units(units, metadata)
             
-            # # Store units in database
+            # Store units in database
             stored_units = await self._store_units(validated_units)
             
             # Update state
             state["generated_units"] = stored_units
-            state["processing_status"] = "completed"
+            state["answer"] = f"Successfully generated {len(stored_units)} learning units."
             
             return state
             
         except Exception as e:
-            state["processing_status"] = "failed"
-            state["error_message"] = str(e)
+            state["answer"] = f"Error generating learning units: {str(e)}"
             return state
         
 
