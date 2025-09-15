@@ -2,19 +2,13 @@ from types import CodeType
 from langchain.prompts import ChatPromptTemplate
 from backend__.models.llms.groq_llm import GroqLLM
 from backend__.utils.logger_config import get_logger
-from backend__.core.states.graph_states import RAGState
+from backend__.core.states.graph_states import RAGState, Summary
 from backend__.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser
-from pydantic import BaseModel, Field, ValidationError
-
+from pydantic import ValidationError
 from typing import List
 
-class Summary(BaseModel):
-    title: str = Field(description="Title or main topic of the summary")
-    content: str = Field(description="The summarized content")
-    key_points: List[str] = Field(description="Main points extracted from the content")
-    language: str = Field(description="Language of the summary")
-
+logger = get_logger("summerization_module")
 
 class SummarizationNode:
     """
@@ -44,19 +38,16 @@ class SummarizationNode:
     def process(self, state: RAGState) -> RAGState:
         """
         Generate a concise study summary from documents stored in state.
-        
-        Args:
-            state: RAGState containing documents and optional query
-            
-        Returns:
-            Updated RAGState with summary and answer
         """
         
         # Get query string (instruction), fallback if missing
         query = state.get("query", "Generate a comprehensive summary of this document")
+        self.logger.debug("Received query: %s", query)
         
         # Load documents and prepare context
         docs, detected_lang = self._load_content(state)
+        self.logger.debug("Loaded %d documents", len(docs))
+        self.logger.debug("Detected language: %s", detected_lang)
         
         if not docs:
             self.logger.warning("No documents available in state")
@@ -66,21 +57,21 @@ class SummarizationNode:
         
         # Prepare context from documents
         context = self._prepare_context(docs)
+        self.logger.debug("Prepared context of length: %d characters", len(context))
         
         try:
             # Generate summary using the chain
             result = self._generate_summary(context, query, detected_lang)
-            title=result['title']
-            content=result['content']
-            key_points=result['key_points']
-            print(key_points)
+            self.logger.debug("Raw LLM output: %s", result)
+            
+            title = result['title']
+            content = result['content']
+            key_points = result['key_points']
+            
             # Validate and store results
-            state['summary_title']=title
-            state['summary']=content
-            state['key_points']= key_points
-
- 
-
+            state['summary_title'] = title
+            state['summary'] = content
+            state['key_points'] = key_points
             
             self.logger.info("Summary generated successfully")
             
@@ -99,24 +90,24 @@ class SummarizationNode:
     def _load_content(self, state: RAGState) -> tuple[List, str]:
         """Load documents from state and detect language."""
         docs = state.get("documents", [])
-        detected_lang = docs[0].metadata.get("language", "ar")
-        
+        detected_lang = "ar"
+        if docs:
+            detected_lang = docs[0].metadata.get("language", "ar")
         return docs, detected_lang
 
     def _prepare_context(self, docs: List) -> str:
         """Combine document contents into a single context string."""
         return "\n\n".join(doc.page_content for doc in docs)
 
-    def _generate_summary(self, context: str, query: str, detected_lang: str) :
+    def _generate_summary(self, context: str, query: str, detected_lang: str):
         """Generate summary using the LLM chain - returns Summary object directly."""
-        
+        self.logger.debug("Invoking chain with query='%s' and lang='%s'", query, detected_lang)
         return self.chain.invoke({
             "context": context,
             "instruction": query,
             "detected_lang": detected_lang,
             "format_instructions": self.parser.get_format_instructions()
         })
-
 
 
 _summarization_node_instance = None
@@ -135,4 +126,3 @@ def summarization_node_singleton(state: RAGState) -> RAGState:
     """
     summarization_node = get_summarization_node()
     return summarization_node.process(state)
-
