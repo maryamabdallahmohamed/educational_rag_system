@@ -3,7 +3,7 @@
 # Core Agent Components
 "🤖 agents":
   - backend/core/agents/**/*
-  - backend__/core/agents/**/*
+  - backend__/corex/agents/**/*
 
 # Handlers
 "🔧 handlers":

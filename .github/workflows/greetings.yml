@@ -1,0 +1,43 @@
+name: Greetings
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: |
+          👋 Welcome to the Educational RAG System project! 
+          
+          Thank you for opening your first issue. We appreciate your contribution to improving our AI-powered educational content processor.
+          
+          Please make sure to:
+          - Provide clear steps to reproduce any bugs
+          - Include relevant error messages or logs
+          - Describe your expected vs actual behavior
+          - Mention your environment (Python version, OS, etc.)
+          
+          Happy coding! 🚀
+        pr-message: |
+          🎉 Thank you for your first pull request to the Educational RAG System!
+          
+          We're excited to see your contribution to our AI-powered educational platform. Before we review your PR, please ensure:
+          
+          ✅ Your code follows our style guidelines (flake8 passes)
+          ✅ You've tested your changes locally
+          ✅ You've updated documentation if needed
+          ✅ Your commit messages are clear and descriptive
+          
+          Our CI will automatically run tests and linting. If you need help or have questions, feel free to ask in the comments.
+          
+          Thanks for helping make education more accessible through AI! 📚🤖
