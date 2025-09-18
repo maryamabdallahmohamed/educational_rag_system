@@ -1,0 +1,86 @@
+# Configuration for automatic PR labeling based on file paths
+
+# Core Agent Components
+"🤖 agents":
+  - backend/core/agents/**/*
+  - backend__/core/agents/**/*
+
+# Handlers
+"🔧 handlers":
+  - backend/core/agents/cpa_handlers/**/*
+  - backend__/core/agents/cpa_handlers/**/*
+
+# LLM and Models
+"🧠 models":
+  - backend/models/**/*
+  - backend__/models/**/*
+
+# Database
+"🗄️ database":
+  - backend/db/**/*
+  - backend__/db/**/*
+
+# Document Processing
+"📄 documents":
+  - backend/loaders/**/*
+  - backend__/loaders/**/*
+
+# Graph and Workflow
+"🔄 workflow":
+  - backend/core/graph.py
+  - backend__/core/graph.py
+  - backend/core/nodes/**/*
+  - backend__/core/nodes/**/*
+  - backend/core/states/**/*
+  - backend__/core/states/**/*
+
+# Configuration
+"⚙️ config":
+  - backend/config.py
+  - backend__/config.py
+  - "*.env"
+  - "example.env"
+  - requirements.txt
+  - langgraph.json
+
+# Prompts
+"💬 prompts":
+  - backend/loaders/prompt_loaders/prompts/**/*
+  - backend__/loaders/prompt_loaders/prompts/**/*
+
+# Utilities
+"🛠️ utils":
+  - backend/utils/**/*
+  - backend__/utils/**/*
+
+# Tests
+"🧪 tests":
+  - "test_*.py"
+  - "*_test.py"
+  - tests/**/*
+
+# Documentation
+"📚 documentation":
+  - "*.md"
+  - docs/**/*
+  - .kiro/specs/**/*
+
+# CI/CD
+"🚀 ci/cd":
+  - .github/**/*
+
+# Dependencies
+"📦 dependencies":
+  - requirements.txt
+  - environment.yml
+  - pyproject.toml
+  - setup.py
+
+# Frontend (if any)
+"🎨 frontend":
+  - frontend/**/*
+  - "*.html"
+  - "*.css"
+  - "*.js"
+  - "*.tsx"
+  - "*.jsx"
