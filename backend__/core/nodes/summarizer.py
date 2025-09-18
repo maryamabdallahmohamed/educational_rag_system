@@ -64,9 +64,25 @@ class SummarizationNode:
             result = self._generate_summary(context, query, detected_lang)
             self.logger.debug("Raw LLM output: %s", result)
             
-            title = result['title']
-            content = result['content']
-            key_points = result['key_points']
+            # Handle case where result might be a string instead of dict
+            if isinstance(result, str):
+                self.logger.warning("LLM returned string instead of JSON, attempting to parse")
+                import json
+                try:
+                    result = json.loads(result)
+                except json.JSONDecodeError:
+                    # Fallback: create a basic summary structure
+                    self.logger.warning("Failed to parse JSON, creating fallback summary")
+                    result = {
+                        "title": "Document Summary",
+                        "content": result[:500] + "..." if len(result) > 500 else result,
+                        "key_points": ["Summary generated from document content"],
+                        "language": detected_lang
+                    }
+            
+            title = result.get('title', 'Document Summary')
+            content = result.get('content', 'Summary not available')
+            key_points = result.get('key_points', ['No key points extracted'])
             
             # Validate and store results
             state['summary_title'] = title
@@ -77,13 +93,15 @@ class SummarizationNode:
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))
-            state["summary_title"] = None
+            state["summary_title"] = "Summary Error"
             state["summary"] = "Error: Invalid summary format generated."
+            state["key_points"] = ["Error in summary generation"]
             
         except Exception as e:
             self.logger.error("Summary generation failed: %s", str(e))
-            state["summary_title"] = None
+            state["summary_title"] = "Summary Error"
             state["summary"] = "Error during summary generation."
+            state["key_points"] = ["Error in summary generation"]
         
         return state
 
