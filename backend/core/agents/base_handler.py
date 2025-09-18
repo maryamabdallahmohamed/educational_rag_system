@@ -45,7 +45,8 @@ class BaseHandler(ABC):
         self.logger.error(error_msg)
         
         # Return user-friendly message
-        return f"I encountered an error while processing your request. Please try again or rephrase your question."
+        message= "I encountered an error while processing your request. Please try again or rephrase your question."
+        return  message
     
     def _validate_state(self) -> bool:
         """Validate that state is available and contains required data"""

@@ -1,14 +1,11 @@
 import torch
-import os
 from dotenv import load_dotenv
 load_dotenv()
 if torch.backends.mps.is_available():
-    DEVICE = "mps"   # Apple Silicon
+    DEVICE = "mps" 
 elif torch.cuda.is_available():
-    DEVICE = "cuda"  # NVIDIA GPU
+    DEVICE = "cuda"
 else:
-    DEVICE = "cpu"   # Default fallback
-
+    DEVICE = "cpu"
 CACHE_DIR = "cache/"
-
 GLOBAL_K=5

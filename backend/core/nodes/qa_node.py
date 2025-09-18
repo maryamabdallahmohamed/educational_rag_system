@@ -1,6 +1,4 @@
-from pydantic import BaseModel, Field
-from typing import TypedDict, List
-from langchain.schema import Document
+from typing import  List
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser

@@ -1,7 +1,7 @@
-from typing_extensions import TypedDict,List, Dict, Any
-from typing import List, Optional
+from typing_extensions import TypedDict,List
+from typing import Optional
 from langchain.schema import Document
-from pydantic import BaseModel, Field
+from pydantic import BaseModel,Field
 
 
 
@@ -30,10 +30,12 @@ class RAGState(TypedDict, total=False):
     rag_context_used: bool  # Flag to indicate if RAG context was used
     intent_classification: str  # Classified user intent
 
+
 class QAPair(BaseModel):
     question: str = Field(description="A question about the content")
     answer: str = Field(description="The answer to the question")
     generated_difficulty: str = Field(description="easy, medium, or hard")
+
 
 class QAResponse(BaseModel):
     qa_pairs: List[QAPair] = Field(description="List of Q&A pairs generated from the content")
@@ -49,6 +51,7 @@ class Summary(BaseModel):
     content: str = Field(description="The summarized content")
     key_points: List[str] = Field(description="Main points extracted from the content")
     language: str = Field(description="Language of the summary")
+
 
 class LearningUnit(BaseModel):
     title: str = Field(description="Clear, concise title for the learning unit")

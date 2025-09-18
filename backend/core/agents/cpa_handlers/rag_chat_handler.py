@@ -5,7 +5,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.tools import Tool
 from langchain.memory import ConversationBufferWindowMemory
 from backend.core.agents.base_handler import BaseHandler
-from backend.core.states.graph_states import RAGState
 from backend.models.llms.groq_llm import GroqLLM
 from backend.models.reranker_model.reranker import Reranker
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
@@ -125,8 +124,7 @@ class RAGChatHandler(BaseHandler):
             return response
             
         except Exception as e:
-            self.logger.error(f"Error generating general response: {e}")
-            return f"I'm sorry, I encountered an error while processing your question: {str(e)}"
+            return self.logger.error(f"Error generating general response: {e}")
     
     def _prepare_context(self, documents: List[Document], query: str) -> str:
         """Prepare context from documents for RAG using reranker"""

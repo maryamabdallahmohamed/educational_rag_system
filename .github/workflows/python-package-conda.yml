@@ -31,7 +31,14 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
         
-    - name: Test with pytest
+    - name: Test with pytest (if tests exist)
       run: |
         pip install pytest
-        pytest
+        # Check if test files exist, if not, skip testing
+        if find . -name "test_*.py" -o -name "*_test.py" -o -path "*/tests/*" | grep -q .; then
+          echo "Test files found, running pytest..."
+          pytest
+        else
+          echo "No test files found, skipping tests..."
+          echo "To add tests, create files matching: test_*.py, *_test.py, or put them in a 'tests' directory"
+        fi

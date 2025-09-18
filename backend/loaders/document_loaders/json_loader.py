@@ -3,28 +3,28 @@ import re
 
 
 class JSONPreprocessor:
-    def load_and_preprocess_data(self, file_path):
-        with open(file_path, 'r') as f:
-            raw_data = json.load(f)
+    # def load_and_preprocess_data(self, file_path):
+    #     with open(file_path, 'r') as f:
+    #         raw_data = json.load(f)
 
-        texts = []
-        for entry in raw_data:
-            if isinstance(entry, str):
-                texts.append(entry)
-            elif isinstance(entry, dict) and "text" in entry:
-                texts.append(entry["text"])
+    #     texts = []
+    #     for entry in raw_data:
+    #         if isinstance(entry, str):
+    #             texts.append(entry)
+    #         elif isinstance(entry, dict) and "text" in entry:
+    #             texts.append(entry["text"])
 
-        clean_texts = [self.clean_text(t) for t in texts]
-        return "\n".join(clean_texts)
+    #     clean_texts = [self.clean_text(t) for t in texts]
+    #     return "\n".join(clean_texts)
     
-    def clean_text(self, text):
-        """Clean text by normalizing whitespace and line breaks."""
-        try:
-            cleaned = re.sub(r'\s+', ' ', re.sub(r'\n{3,}', '\n\n', str(text))).strip()
-            return cleaned
-        except Exception as e:
-            print(f"❌ Error cleaning text: {str(e)}")
-            raise
+    # def clean_text(self, text):
+    #     """Clean text by normalizing whitespace and line breaks."""
+    #     try:
+    #         cleaned = re.sub(r'\s+', ' ', re.sub(r'\n{3,}', '\n\n', str(text))).strip()
+    #         return cleaned
+    #     except Exception as e:
+    #         print(f"❌ Error cleaning text: {str(e)}")
+    #         raise
     
 
 

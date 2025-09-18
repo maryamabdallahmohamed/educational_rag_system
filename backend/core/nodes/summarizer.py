@@ -1,4 +1,3 @@
-from types import CodeType
 from langchain.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 from backend.utils.logger_config import get_logger
