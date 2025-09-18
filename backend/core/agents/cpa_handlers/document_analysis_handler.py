@@ -1,8 +1,8 @@
 from typing import List
 from langchain.schema import Document
 from langchain_core.tools import Tool
-from backend__.core.agents.base_handler import BaseHandler
-from backend__.models.reranker_model.reranker import Reranker
+from backend.core.agents.base_handler import BaseHandler
+from backend.models.reranker_model.reranker import Reranker
 
 
 class DocumentAnalysisHandler(BaseHandler):

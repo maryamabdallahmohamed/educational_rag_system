@@ -1,7 +1,7 @@
 from sentence_transformers import CrossEncoder
 import logging as logger
 from langchain.schema import Document
-from backend__.config import CACHE_DIR
+from backend.config import CACHE_DIR
 
 class Reranker:
     def __init__(self, model_name=None):

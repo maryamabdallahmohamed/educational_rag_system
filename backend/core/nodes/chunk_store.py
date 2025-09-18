@@ -1,11 +1,11 @@
 import json
-from backend__.core.states.graph_states import RAGState
-from backend__.utils.helpers.language_detection import returnlang
-from backend__.loaders.document_loaders.text_splitter import document_chunk
+from backend.core.states.graph_states import RAGState
+from backend.utils.helpers.language_detection import returnlang
+from backend.loaders.document_loaders.text_splitter import document_chunk
 from langchain.schema import Document
-from backend__.utils.logger_config import get_logger
-from backend__.models.embedders.hf_embedder import HFEmbedder
-from backend__.db.connect_db import run_query
+from backend.utils.logger_config import get_logger
+from backend.models.embedders.hf_embedder import HFEmbedder
+from backend.db.connect_db import run_query
 
 
 class ChunkAndStoreNode:

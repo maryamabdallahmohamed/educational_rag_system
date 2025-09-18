@@ -1,7 +1,7 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from .base import BaseEmbedder
-from backend__.config import DEVICE, CACHE_DIR
+from backend.config import DEVICE, CACHE_DIR
 
 
 from typing import List

@@ -1,10 +1,10 @@
 from langgraph.types import RunnableConfig
-from backend__.core.states.graph_states import RAGState, RouterOutput
-from backend__.utils.logger_config import get_logger
+from backend.core.states.graph_states import RAGState, RouterOutput
+from backend.utils.logger_config import get_logger
 from langchain_core.output_parsers import JsonOutputParser
-from backend__.models.llms.groq_llm import GroqLLM
+from backend.models.llms.groq_llm import GroqLLM
 from langchain_core.prompts import ChatPromptTemplate
-from backend__.loaders.prompt_loaders.prompt_loader import PromptLoader
+from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 
 logger = get_logger("router_node")
 model = GroqLLM()

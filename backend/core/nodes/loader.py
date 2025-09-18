@@ -1,12 +1,12 @@
 import os
 from datetime import datetime
 from langgraph.types import RunnableConfig
-from backend__.core.states.graph_states import RAGState
-from backend__.loaders.document_loaders.json_loader import JSONPreprocessor
-from backend__.utils.helpers.language_detection import returnlang
+from backend.core.states.graph_states import RAGState
+from backend.loaders.document_loaders.json_loader import JSONPreprocessor
+from backend.utils.helpers.language_detection import returnlang
 from langchain.schema import Document
 
-from backend__.utils.logger_config import get_logger
+from backend.utils.logger_config import get_logger
 
 # Initialize module-level logger
 logger = get_logger("loader")

@@ -1,15 +1,15 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import RunnableConfig
-from backend__.core.states.graph_states import RAGState
-from backend__.utils.logger_config import get_logger
+from backend.core.states.graph_states import RAGState
+from backend.utils.logger_config import get_logger
 
 # Import your nodes
-from backend__.core.nodes.chunk_store import ChunkAndStoreNode
-from backend__.core.nodes.loader import load_node
-from backend__.core.nodes.router import router_node
-from backend__.core.nodes.qa_node import qa_node_singleton
-from backend__.core.nodes.summarizer import summarization_node_singleton
-from backend__.core.agents.content_processor_agent import ContentProcessorAgent
+from backend.core.nodes.chunk_store import ChunkAndStoreNode
+from backend.core.nodes.loader import load_node
+from backend.core.nodes.router import router_node
+from backend.core.nodes.qa_node import qa_node_singleton
+from backend.core.nodes.summarizer import summarization_node_singleton
+from backend.core.agents.content_processor_agent import ContentProcessorAgent
 logger = get_logger("main_graph")
 
 # Class instances

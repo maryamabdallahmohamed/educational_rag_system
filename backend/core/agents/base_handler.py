@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 from langchain_core.tools import Tool
-from backend__.core.states.graph_states import RAGState
-from backend__.utils.logger_config import get_logger
+from backend.core.states.graph_states import RAGState
+from backend.utils.logger_config import get_logger
 
 
 class BaseHandler(ABC):

@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import TypedDict, List
 from langchain.schema import Document
-from backend__.utils.logger_config import get_logger
-from backend__.loaders.prompt_loaders.prompt_loader import PromptLoader
+from backend.utils.logger_config import get_logger
+from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import ChatPromptTemplate
-from backend__.models.llms.groq_llm import GroqLLM
-from backend__.core.states.graph_states import RAGState,QAResponse
+from backend.models.llms.groq_llm import GroqLLM
+from backend.core.states.graph_states import RAGState,QAResponse
 class QANode:
     """
     Modular Q&A generation node for RAG system.
