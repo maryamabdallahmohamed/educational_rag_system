@@ -16,8 +16,6 @@ class RAGState(TypedDict, total=False):
     file_paths: List[str]
     ingested: bool
     ingested_sources: List[str]
-    new_documents: List[Document]
-    new_chunks: List[Document]
     conversation_id: str
     qa_pairs: List[dict] 
     question_count: int  
