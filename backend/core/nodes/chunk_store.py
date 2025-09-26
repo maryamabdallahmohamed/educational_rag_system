@@ -21,21 +21,7 @@ class ChunkAndStoreNode:
         embedding = self.embedder.embed_query(doc.page_content)
         metadata_json = json.dumps(doc.metadata or {})
 
-        query = """
-            INSERT INTO documents (title, content, metadata, embedding)
-            VALUES (%s, %s, %s::jsonb, %s::vector)
-            RETURNING id
-        """
-        params = (
-            doc.metadata.get("title"),
-            doc.page_content,
-            metadata_json,
-            embedding,
-        )
-        resp = self.db_runner(query, params, fetch=True)
-        if not resp:
-            raise RuntimeError("Document insert failed — no id returned")
-        return resp[0][0]
+
 
     def _insert_chunk(self, chunk_doc, doc_id: int):
         """Insert a single chunk linked to a document ID."""
@@ -48,7 +34,6 @@ class ChunkAndStoreNode:
         """
         params = (doc_id, chunk_doc.page_content, metadata_json, embedding)
         self.db_runner(query, params, fetch=False)
-
     def process(self, state: RAGState) -> RAGState:
         documents = state.get("documents") or []
         if not documents:
@@ -63,7 +48,7 @@ class ChunkAndStoreNode:
                 doc_id = self._insert_document(doc)
                 inserted_doc_ids.append(doc_id)
 
-                # Split into chunks and build them via DocumentBuilder
+
                 chunks = document_chunk(doc.page_content)
                 for i, chunk in enumerate(chunks):
                     chunk_doc = (
@@ -86,8 +71,9 @@ class ChunkAndStoreNode:
         for chunk_doc, doc_id in all_chunks:
             self._insert_chunk(chunk_doc, doc_id)
 
-        # Update state
+        # Update state with both IDs and chunks
         state["document_ids"] = inserted_doc_ids
+        state["chunks"] = [chunk_doc for chunk_doc, _ in all_chunks]
 
         self.logger.info(
             "Inserted %d documents and %d chunks",
