@@ -1,0 +1,68 @@
+name: Enhanced Auto PR
+on:
+  push:
+    branches: [main, master]  
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate PR content
+        id: pr_content
+        run: |
+          BASE_SHA=$(git merge-base origin/main HEAD)
+          
+          # Get commit count
+          COMMIT_COUNT=$(git rev-list --count $BASE_SHA..HEAD)
+          
+          # Get commits with better formatting
+          COMMITS=$(git log --pretty=format:"- %s (%h)" $BASE_SHA..HEAD)
+          
+          # Get file changes by type
+          ADDED=$(git diff --name-status $BASE_SHA..HEAD | grep "^A" | cut -f2 | sed 's/^/- /')
+          MODIFIED=$(git diff --name-status $BASE_SHA..HEAD | grep "^M" | cut -f2 | sed 's/^/- /')
+          DELETED=$(git diff --name-status $BASE_SHA..HEAD | grep "^D" | cut -f2 | sed 's/^/- /')
+          
+          # Create PR body
+          cat << EOF >> pr_body.md
+          ## 🚀 What's Changed
+          
+          This PR includes $COMMIT_COUNT commits:
+          
+          $COMMITS
+          
+          ## 📁 File Changes
+          
+          EOF
+          
+          if [ -n "$ADDED" ]; then
+            echo "### ➕ Added" >> pr_body.md
+            echo "$ADDED" >> pr_body.md
+            echo "" >> pr_body.md
+          fi
+          
+          if [ -n "$MODIFIED" ]; then
+            echo "### ✏️ Modified" >> pr_body.md
+            echo "$MODIFIED" >> pr_body.md
+            echo "" >> pr_body.md
+          fi
+          
+          if [ -n "$DELETED" ]; then
+            echo "### ❌ Deleted" >> pr_body.md
+            echo "$DELETED" >> pr_body.md
+            echo "" >> pr_body.md
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "${{ github.ref_name }} → main"
+          body-file: pr_body.md
+          base: main
+          head: ${{ github.ref_name }}

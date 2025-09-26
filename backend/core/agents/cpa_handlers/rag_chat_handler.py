@@ -12,7 +12,7 @@ from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 
 class RAGChatHandler(BaseHandler):
     """
-    Handles both RAG-based conversational chat with documents and general chat
+    Handles RAG-based conversational chat with documents only
     """
     
     def __init__(self):
@@ -20,7 +20,7 @@ class RAGChatHandler(BaseHandler):
         self.llm_wrapper = GroqLLM()
         self.llm = self.llm_wrapper.llm
         self.reranker = Reranker()
-        self.relevance_threshold = 0.5  # Lowered threshold for better flexibility
+        self.relevance_threshold = 0.5 
         self.memory = ConversationBufferWindowMemory(
             k=50,  
             return_messages=True
@@ -33,21 +33,13 @@ class RAGChatHandler(BaseHandler):
             ("human", "{query}")
         ])
         
-        # Load general chat prompt
-        general_chat_template = PromptLoader.load_system_prompt("prompts/general_chat.yaml")
-        self.general_chat_prompt = ChatPromptTemplate.from_messages([
-            ("system", general_chat_template),
-            ("human", "{query}")
-        ])
-        
         self.rag_chain = self.rag_chat_prompt | self.llm | StrOutputParser()
-        self.general_chain = self.general_chat_prompt | self.llm | StrOutputParser()
     
     def tool(self) -> Tool:
-        """Return configured LangChain Tool for chat (both RAG and general)"""
+        """Return configured LangChain Tool for RAG chat"""
         return Tool(
-            name="chat",
-            description="Answer questions and engage in conversation. Can use uploaded documents when relevant, or provide general assistance for any topic.",
+            name="rag_chat",
+            description="Answer questions about uploaded documents using RAG (Retrieval-Augmented Generation). Requires documents to be available.",
             func=self._process_wrapper
         )
     
@@ -56,75 +48,56 @@ class RAGChatHandler(BaseHandler):
         try:
             return self._process(query)
         except Exception as e:
-            return self._handle_error(e, "chat")
+            return self._handle_error(e, "rag_chat")
     
     def _process(self, query: str) -> str:
-        """Process chat request - either RAG-based or general chat"""
+        """Process RAG chat request"""
         try:
             documents = self.current_state.get('documents', [])
+            
+            # Check if documents are available
+            if not documents:
+                return "I don't have any documents to reference. Please upload documents first before asking questions about their content."
+            
+            # Check document relevance
+            if not self._has_relevant_content(query, documents):
+                return "I couldn't find relevant information in the uploaded documents to answer your question. Please try rephrasing your question or check if the documents contain the information you're looking for."
+            
             conversation_history = self._get_conversation_history()
+            context = self._prepare_context(documents, query)
+            response = self._generate_rag_response(query, context, conversation_history)
             
-            # Determine if we should use RAG or general chat
-            use_rag = self._should_use_rag(query, documents)
-            
-            if use_rag:
-                # RAG mode: use documents
-                context = self._prepare_context(documents, query)
-                response = self._generate_rag_response(query, context, conversation_history)
-                self.current_state["rag_context_used"] = True
-                self.logger.info(f"Used RAG mode for query: {query[:50]}...")
-            else:
-                # General chat mode: no documents
-                response = self._generate_general_response(query, conversation_history)
-                self.current_state["rag_context_used"] = False
-                self.logger.info(f"Used general chat mode for query: {query[:50]}...")
-            
-            # Update conversation memory
+            # Update state and memory
+            self.current_state["rag_context_used"] = True
             self._update_memory(query, response)
+            
+            self.logger.info(f"Processed RAG query: {query[:50]}...")
             
             return response
             
         except Exception as e:
-            self.logger.error(f"Error in chat processing: {e}")
-            return f"I encountered an error while processing your question: {str(e)}"
+            self.logger.error(f"Error in RAG chat processing: {e}")
+            return f"I encountered an error while processing your question about the documents: {str(e)}"
     
-    def _should_use_rag(self, query: str, documents: List[Document]) -> bool:
-        """Determine if we should use RAG based on document availability and relevance"""
+    def _has_relevant_content(self, query: str, documents: List[Document]) -> bool:
+        """Check if documents have relevant content for the query"""
         try:
-            # No documents available - use general chat
-            if not documents:
-                return False
-            
             # Use reranker to check relevance
             reranked_docs = self.reranker.rerank_chunks(query, documents)
             
-            # If no reranked docs or relevance is too low, use general chat
+            # If no reranked docs or relevance is too low, return False
             if not reranked_docs:
                 return False
                 
             best_score = reranked_docs[0].metadata.get("rerank_score", 0)
             
-            # Use RAG if relevance score meets threshold
+            # Check if relevance score meets threshold
             return best_score >= self.relevance_threshold
             
         except Exception as e:
-            self.logger.error(f"Error determining RAG usage: {e}")
-            # Default to general chat on error
-            return False
-    
-    def _generate_general_response(self, query: str, history: str) -> str:
-        """Generate general chat response without document context"""
-        try:
-            chain_input = {
-                "query": query,
-                "conversation_history": history
-            }
-            
-            response = self.general_chain.invoke(chain_input)
-            return response
-            
-        except Exception as e:
-            return self.logger.error(f"Error generating general response: {e}")
+            self.logger.error(f"Error checking content relevance: {e}")
+            # Default to True to allow processing, let the RAG chain handle it
+            return True
     
     def _prepare_context(self, documents: List[Document], query: str) -> str:
         """Prepare context from documents for RAG using reranker"""
