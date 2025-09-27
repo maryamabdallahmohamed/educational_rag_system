@@ -4,7 +4,7 @@ DetectorFactory.seed = 0
 
 
 
-async def returnlang(text: str) -> str:
+def returnlang(text: str) -> str:
     """Detect language of the input text."""
     try:
         detected = detect(text)

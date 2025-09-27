@@ -53,7 +53,7 @@ class ChunkAndStoreNode:
                 # insert doc
                 doc_dto = await self._insert_document(session, doc)
                 inserted_doc_ids.append(doc_dto.id)
-                language = await returnlang(doc.page_content)
+                language =returnlang(doc.page_content)
                 # create chunks
                 chunks = document_chunk(doc.page_content)
                 for i, chunk in enumerate(chunks):
