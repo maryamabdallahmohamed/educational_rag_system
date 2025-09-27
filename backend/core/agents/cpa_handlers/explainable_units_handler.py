@@ -4,7 +4,7 @@ from langchain_core.tools import Tool
 from backend.core.agents.base_handler import BaseHandler
 from backend.core.states.graph_states import RAGState, LearningUnit
 from backend.models.llms.groq_llm import GroqLLM
-from backend.db.connect_db import run_query
+# from backend.db.db import run_query
 from backend.utils.helpers.language_detection import returnlang
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 import uuid

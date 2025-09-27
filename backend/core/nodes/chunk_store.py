@@ -5,16 +5,25 @@ from backend.utils.helpers.language_detection import returnlang
 from backend.loaders.document_loaders.text_splitter import document_chunk
 from backend.utils.logger_config import get_logger
 from backend.models.embedders.hf_embedder import HFEmbedder
+<<<<<<< HEAD
 from backend.db.connect_db import run_query
 from backend.core.builders.document_builder import DocumentBuilder
+=======
+
+>>>>>>> 2aa777b (Refactor database connection and models; remove old connection logic and implement new NeonDatabase wrapper)
 
 
 class ChunkAndStoreNode:
     def __init__(self):
         self.embedder = HFEmbedder()
+<<<<<<< HEAD
         self.db_runner = run_query
         self.logger = get_logger("chunk_and_store")
         self.builder = DocumentBuilder()
+=======
+
+        self.logger =get_logger('chunk_and_store')
+>>>>>>> 2aa777b (Refactor database connection and models; remove old connection logic and implement new NeonDatabase wrapper)
 
     def _insert_document(self, doc) -> int:
         """Insert a full document and return its ID."""
