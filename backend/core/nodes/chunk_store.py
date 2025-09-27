@@ -1,92 +1,73 @@
 import json
-from datetime import datetime
+import asyncio
+from langchain.schema import Document
 from backend.core.states.graph_states import RAGState
 from backend.utils.helpers.language_detection import returnlang
 from backend.loaders.document_loaders.text_splitter import document_chunk
 from backend.utils.logger_config import get_logger
 from backend.models.embedders.hf_embedder import HFEmbedder
-<<<<<<< HEAD
-from backend.db.connect_db import run_query
-from backend.core.builders.document_builder import DocumentBuilder
-=======
 
->>>>>>> 2aa777b (Refactor database connection and models; remove old connection logic and implement new NeonDatabase wrapper)
+
+from backend.database.db import NeonDatabase
+from backend.database.repositories.document_repo import DocumentRepository
+from backend.database.repositories.chunk_repo import ChunkRepository
 
 
 class ChunkAndStoreNode:
     def __init__(self):
         self.embedder = HFEmbedder()
-<<<<<<< HEAD
-        self.db_runner = run_query
         self.logger = get_logger("chunk_and_store")
-        self.builder = DocumentBuilder()
-=======
 
-        self.logger =get_logger('chunk_and_store')
->>>>>>> 2aa777b (Refactor database connection and models; remove old connection logic and implement new NeonDatabase wrapper)
+    async def _insert_document(self, session, doc: Document):
+        doc_repo = DocumentRepository(session)
 
-    def _insert_document(self, doc) -> int:
-        """Insert a full document and return its ID."""
-        embedding = self.embedder.embed_query(doc.page_content)
-        metadata_json = json.dumps(doc.metadata or {})
+        # Save document
+        doc_dto = await doc_repo.add(
+            title=(doc.metadata or {}).get("title", "Untitled"),
+            content=doc.page_content,
+            doc_metadata=doc.metadata or {}
+        )
+        return doc_dto
 
+    async def _insert_chunk(self, session,chunk_doc: Document, doc_id):
+        chunk_repo = ChunkRepository(session)
+        embedding = await self.embedder.embed_query(chunk_doc.page_content)
 
+        chunk_dto = await chunk_repo.add(
+            document_id=doc_id,
+            content=chunk_doc.page_content,
+            embedding=embedding,
+        )
+        return chunk_dto
 
-    def _insert_chunk(self, chunk_doc, doc_id: int):
-        """Insert a single chunk linked to a document ID."""
-        embedding = self.embedder.embed_query(chunk_doc.page_content)
-        metadata_json = json.dumps(chunk_doc.metadata or {})
-
-        query = """
-            INSERT INTO chunks (document_id, content, metadata, embedding)
-            VALUES (%s, %s, %s::jsonb, %s::vector)
-        """
-        params = (doc_id, chunk_doc.page_content, metadata_json, embedding)
-        self.db_runner(query, params, fetch=False)
-    def process(self, state: RAGState) -> RAGState:
-        documents = state.get("documents") or []
-        if not documents:
-            self.logger.info("No documents found in state. Skipping chunk and store.")
+    async def process(self, state: RAGState) -> RAGState:
+        new_docs = state.get("documents") or []
+        if not new_docs:
             return state
 
         inserted_doc_ids = []
-        all_chunks = []
+        inserted_chunks = []
 
-        for doc in documents:
-            try:
-                doc_id = self._insert_document(doc)
-                inserted_doc_ids.append(doc_id)
-
-
+        async with NeonDatabase.get_session() as session:
+            for doc in new_docs:
+                # insert doc
+                doc_dto = await self._insert_document(session, doc)
+                inserted_doc_ids.append(doc_dto.id)
+                language = await returnlang(doc.page_content)
+                # create chunks
                 chunks = document_chunk(doc.page_content)
                 for i, chunk in enumerate(chunks):
-                    chunk_doc = (
-                        self.builder
-                        .set_content(chunk)
-                        .set_metadata({
-                            **doc.metadata,
-                            "chunk_id": i,
-                            "language": returnlang(chunk),
-                            "parent_doc_id": doc_id,
-                            "chunked_at": datetime.now().isoformat(),
-                        })
-                        .build()
+                    chunk_doc = Document(
+                        page_content=chunk,
+                        metadata={**(doc.metadata or {}), "chunk_id": i, "language":  language},
+
                     )
-                    all_chunks.append((chunk_doc, doc_id))
-            except Exception as e:
-                self.logger.error(f"Failed processing document: {e}", exc_info=True)
+                    chunk_dto = await self._insert_chunk(session, chunk_doc, doc_dto.id)
+                    inserted_chunks.append(chunk_dto)
 
-        # Insert chunks after building all
-        for chunk_doc, doc_id in all_chunks:
-            self._insert_chunk(chunk_doc, doc_id)
-
-        # Update state with both IDs and chunks
+        # update state
         state["document_ids"] = inserted_doc_ids
-        state["chunks"] = [chunk_doc for chunk_doc, _ in all_chunks]
+        state["chunks"] = inserted_chunks
 
-        self.logger.info(
-            "Inserted %d documents and %d chunks",
-            len(inserted_doc_ids),
-            len(all_chunks),
-        )
+        self.logger.info("Inserted %d documents and %d chunks", len(inserted_doc_ids), len(inserted_chunks))
         return state

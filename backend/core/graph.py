@@ -14,9 +14,9 @@ logger = get_logger("main_graph")
 chunk_store_instance = ChunkAndStoreNode()
 content_processor_instance = ContentProcessorAgent()
 
-def chunk_store_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
-    """Wrapper for ChunkAndStoreNode.process()"""
-    return chunk_store_instance.process(state)
+async def chunk_store_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
+    result = await chunk_store_instance.process(state)
+    return result
 
 async def content_processor_agent_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
     """Enhanced content processor agent with RAG chat and explainable units"""

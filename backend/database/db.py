@@ -28,10 +28,15 @@ class NeonDatabase:
 
     @classmethod
     def get_session_factory(cls):
-        """Return the AsyncSession factory (call it with () to get a session)."""
+        """Return the session factory."""
         if cls._SessionLocal is None:
             cls.init()
         return cls._SessionLocal
+
+    @classmethod
+    def get_session(cls) -> AsyncSession:
+        """Return a new session instance """
+        return cls.get_session_factory()()
 
     @classmethod
     async def dispose(cls):
