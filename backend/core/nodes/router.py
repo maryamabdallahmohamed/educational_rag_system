@@ -5,9 +5,14 @@ from langchain_core.output_parsers import JsonOutputParser
 from backend.models.llms.groq_llm import GroqLLM
 from langchain_core.prompts import ChatPromptTemplate
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
-
+from backend.database.repositories.router_decision_repository import RouterDecisionRepository
+from backend.database.db import NeonDatabase
+from backend.database.models.router import RouteType
+import asyncio
 logger = get_logger("router_node")
 model = GroqLLM()
+Database=NeonDatabase()
+
 llm = model.llm
 
 parser = JsonOutputParser(pydantic_object=RouterOutput)
@@ -22,40 +27,50 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm | parser
 
-def router_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
+async def router_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
     """Router node that determines next step based on user input"""
-    
+
     user_input = state.get("query", "").strip()
-    
     if not user_input:
-        logger.warning("No user input found in state")
         state["next_step"] = "content_processor_agent"
         return state
-    
+
     try:
-        
-        routing_result = chain.invoke({
-            "user_input": user_input,
-            "format_instructions": parser.get_format_instructions()
-        })
-        
-        state["next_step"] = routing_result["route"]
+        # Run LLM classification in a thread 
+        routing_result = await asyncio.to_thread(
+            lambda: chain.invoke({
+                "user_input": user_input,
+                "format_instructions": parser.get_format_instructions()
+            })
+        )
+
+        route = routing_result["route"]
+        state["next_step"] = route
         state["router_confidence"] = routing_result.get("confidence", 0.0)
         state["router_reasoning"] = routing_result.get("reasoning", "LLM classification")
-        
-        logger.info("Router decision: '%s' -> %s", user_input[:50], routing_result["route"])
-        
+
+        # Save to DB asynchronously
+        try:
+            async with NeonDatabase.get_session() as session:
+                decision_repo = RouterDecisionRepository(session)
+                logger.info(f"Saving router decision: query='{user_input}', route='{route}'")
+
+
+                try:
+                    route_enum = RouteType(route)
+                except ValueError:
+                    logger.warning(f"Unknown route type: {route}, defaulting to CONTENT_PROCESSOR")
+                    route_enum = RouteType.CONTENT_PROCESSOR
+
+                decision = await decision_repo.create(
+                    query=user_input,
+                    chosen_route=route_enum
+                )
+                logger.info(f"Router decision saved successfully: {decision.id}")
+        except Exception as db_error:
+            logger.error(f"Failed to save router decision: {db_error}")
+
     except Exception as e:
-        logger.error("Router classification failed: %s", str(e))
-        state["next_step"] = "content_processor_agent"  # Fallback
-        
+        state["next_step"] = "content_processor_agent"
+
     return state
-
-def classify_with_llm(user_input: str) -> dict:
-    """Use chain with JsonOutputParser to classify user intent"""
-    
-    return chain.invoke({
-        "user_input": user_input,
-        "format_instructions": parser.get_format_instructions()
-    })
-
