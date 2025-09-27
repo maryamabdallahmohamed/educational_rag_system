@@ -14,13 +14,10 @@ class NeonDatabase:
 
     @classmethod
     def init(cls):
+        """Initialize the engine and session factory if not already set."""
         if cls._engine is None:
             database_url = os.getenv("DATABASE_URL")
-            if not database_url:
-                raise ValueError("DATABASE_URL is not set")
-
             async_url = re.sub(r"^postgresql:", "postgresql+asyncpg:", database_url)
-
             cls._engine = create_async_engine(async_url, echo=True, future=True)
             cls._SessionLocal = sessionmaker(
                 bind=cls._engine,
@@ -30,15 +27,16 @@ class NeonDatabase:
         return cls._engine
 
     @classmethod
-    def get_session(cls) -> AsyncSession:
+    def get_session_factory(cls):
+        """Return the AsyncSession factory (call it with () to get a session)."""
         if cls._SessionLocal is None:
             cls.init()
-        return cls._SessionLocal()
+        return cls._SessionLocal
 
     @classmethod
     async def dispose(cls):
+        """Dispose engine + reset session factory."""
         if cls._engine:
             await cls._engine.dispose()
             cls._engine = None
             cls._SessionLocal = None
-

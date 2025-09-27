@@ -1,14 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, JSON
 from sqlalchemy.orm import relationship
 from backend.database.models import Base
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String, nullable=False)
-    doc_metadata = Column(JSONB)  
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    content = Column(String, nullable=True)
+    doc_metadata = Column(JSON, nullable=True)
 
-    chunks = relationship("Chunk", back_populates="document")
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
