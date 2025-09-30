@@ -23,11 +23,17 @@ class RAGState(TypedDict, total=False):
     summary_title: str
     summary_key_points: List[str]
     feedback_loop: str
-    generated_units: List[dict]  # For storing generated learning units
-    conversation_history: List[dict]  # For storing conversation context
-    rag_context_used: bool  # Flag to indicate if RAG context was used
-    intent_classification: str  # Classified user intent
-    documents_available: bool  # Flag to indicate if documents are available in database
+    generated_units: List[dict]  
+    conversation_history: List[dict] 
+    rag_context_used: bool 
+    intent_classification: str 
+    documents_available: bool  
+
+class cpa_processor_state(TypedDict, total=False):
+    chunks: List
+    similarity_scores: List[float]
+    tool_used: str
+
 
 
 class QAPair(BaseModel):

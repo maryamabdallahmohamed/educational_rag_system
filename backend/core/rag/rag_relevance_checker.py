@@ -1,7 +1,7 @@
 from typing import List
 from langchain.schema import Document
 import logging
-
+from backend.core.states.graph_states import cpa_processor_state
 
 class RAGRelevanceChecker:
     """Handles relevance checking of documents based on similarity scores"""
@@ -11,7 +11,7 @@ class RAGRelevanceChecker:
         # Similarity scores range from 0-1, where higher is more similar
         self.similarity_threshold = similarity_threshold
         self.logger = logging.getLogger(__name__)
-
+        self.cpa_processor_state=cpa_processor_state()
     def check_relevance(self, query: str, documents: List[Document]) -> bool:
         """Check if documents have relevant content based on similarity scores"""
         try:
@@ -34,8 +34,9 @@ class RAGRelevanceChecker:
             self.logger.info(f"Query: '{query[:50]}...'")
             self.logger.info(f"Top 5 similarity scores: {all_scores}")
             self.logger.info(f"Best similarity score: {best_score:.3f}, threshold: {self.similarity_threshold}, relevant: {is_relevant}")
-
-            return is_relevant
+            chunks=[doc.page_content for doc in documents[:5]]
+            tool_used= "RAG"
+            return is_relevant , all_scores, chunks,tool_used
 
         except Exception as e:
             self.logger.error(f"Error checking relevance: {e}")
