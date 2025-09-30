@@ -17,8 +17,8 @@ class RAGState(TypedDict, total=False):
     ingested: bool
     ingested_sources: List[str]
     conversation_id: str
-    qa_pairs: List[dict] 
-    question_count: int  
+    qa_pairs: List[dict]
+    question_count: int
     summary: str
     summary_title: str
     summary_key_points: List[str]
@@ -27,6 +27,7 @@ class RAGState(TypedDict, total=False):
     conversation_history: List[dict]  # For storing conversation context
     rag_context_used: bool  # Flag to indicate if RAG context was used
     intent_classification: str  # Classified user intent
+    documents_available: bool  # Flag to indicate if documents are available in database
 
 
 class QAPair(BaseModel):

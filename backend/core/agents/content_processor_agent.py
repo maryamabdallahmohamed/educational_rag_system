@@ -27,8 +27,7 @@ class ContentProcessorAgent:
 
         self.handlers = [
             ExplainableUnitsHandler(),
-            RAGChatHandler(),
-            DocumentAnalysisHandler()
+            RAGChatHandler()
         ]
 
         # Collect tools from handlers
@@ -84,25 +83,32 @@ class ContentProcessorAgent:
         try:
             # Set current state for all handlers
             self._set_handler_states(state)
-            
+
+            # Check if we have documents in database for RAG operations
+            await self._check_rag_availability(state)
+
             # Detect language for response
             detected_language = returnlang(query)
             logger.info(f"Detected language: {detected_language}")
-            
+
             # Add language instruction to query
             language_instruction = "Please respond in Arabic." if detected_language == "Arabic" else "Please respond in English."
             enhanced_query = f"{language_instruction}\n\nUser query: {query}"
-            
+
             # Execute agent
             logger.info("Starting simplified agent execution...")
             result = await self.agent_executor.ainvoke({
                 "input": enhanced_query
             })
-            
+
             # Extract the final answer
             answer = result.get("output", "I couldn't process your request properly.")
             state["answer"] = answer
-            
+
+            # Update RAG context usage flag if it was used
+            if state.get("rag_context_used", False):
+                logger.info("RAG context was successfully used in response generation")
+
             logger.info("Agent execution completed successfully")
             return state
 
@@ -114,6 +120,34 @@ class ContentProcessorAgent:
             # Clean up handler states
             self._clear_handler_states()
     
+    async def _check_rag_availability(self, state: RAGState):
+        """Check if RAG documents are available in database"""
+        try:
+            # Get RAG handler to check availability
+            rag_handler = None
+            for handler in self.handlers:
+                if isinstance(handler, RAGChatHandler):
+                    rag_handler = handler
+                    break
+
+            if rag_handler:
+                # Quick relevance check to see if we have documents
+                query = state.get("query", "Check for document availability").strip()
+                has_relevant = await rag_handler.check_relevance(query)
+                if has_relevant:
+                    logger.info("RAG documents available in database")
+                    state["documents_available"] = True
+                else:
+                    logger.info("No relevant documents found in database")
+                    state["documents_available"] = False
+            else:
+                logger.warning("RAG handler not found")
+                state["documents_available"] = False
+
+        except Exception as e:
+            logger.error(f"Error checking RAG availability: {e}")
+            state["documents_available"] = False
+
     def _set_handler_states(self, state: RAGState):
         """Set state for all handlers"""
         for handler in self.handlers:
