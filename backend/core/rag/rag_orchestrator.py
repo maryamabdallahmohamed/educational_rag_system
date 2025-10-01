@@ -9,7 +9,14 @@ import logging
 class RAGOrchestrator:
     """Orchestrates the RAG pipeline by coordinating all components"""
 
-    def __init__(self, similarity_threshold: float = 0.3, top_k: int = 10, max_context_docs: int = 5, max_content_length: int = 5000, use_json_output: bool = False, use_learning_unit: bool = False
+    def __init__(
+        self, 
+        similarity_threshold: float = 0.3, 
+        top_k: int = 10, 
+        max_context_docs: int = 5, 
+        max_content_length: int = 5000, 
+        use_json_output: bool = False, 
+        use_learning_unit: bool = False
     ):
         self.retriever = RAGRetriever()
         self.relevance_checker = RAGRelevanceChecker(similarity_threshold)
@@ -23,15 +30,42 @@ class RAGOrchestrator:
         self.use_json_output = use_json_output
         self.use_learning_unit = use_learning_unit
 
-    async def process_query(self, query: str, return_structured: bool = False) :
+        # Track last retrieval for database logging
+        self._last_retrieval_info = {
+            "chunk_ids": [],
+            "similarity_scores": [],
+            "num_chunks": 0
+        }
+
+    async def process_query(self, query: str, return_structured: bool = False):
         """Process a RAG query through the complete pipeline"""
         try:
             self.logger.info(f"Processing RAG query: {query[:50]}...")
 
             # Step 1: Retrieve documents
             documents = await self.retriever.retrieve_documents(query, self.top_k)
+            
             if not documents:
+                # Reset retrieval info when no documents found
+                self._last_retrieval_info = {
+                    "chunk_ids": [],
+                    "similarity_scores": [],
+                    "num_chunks": 0
+                }
                 return self._handle_no_documents()
+
+            # Store retrieval metadata for database tracking
+            self._last_retrieval_info = {
+                "chunk_ids": [
+                    str(doc.metadata.get("id", doc.metadata.get("chunk_id", ""))) 
+                    for doc in documents
+                ],
+                "similarity_scores": [
+                    float(doc.metadata.get("similarity_score", 0.0)) 
+                    for doc in documents
+                ],
+                "num_chunks": len(documents)
+            }
 
             # Step 2: Check relevance
             if not self.relevance_checker.check_relevance(query, documents):
@@ -53,16 +87,58 @@ class RAGOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Error in RAG pipeline: {e}")
+            # Reset retrieval info on error
+            self._last_retrieval_info = {
+                "chunk_ids": [],
+                "similarity_scores": [],
+                "num_chunks": 0
+            }
             return self._handle_pipeline_error(e)
 
     async def check_query_relevance(self, query: str) -> bool:
         """Check if query has relevant content without generating full response"""
         try:
             documents = await self.retriever.retrieve_documents(query, self.top_k)
+            
+            if not documents:
+                self._last_retrieval_info = {
+                    "chunk_ids": [],
+                    "similarity_scores": [],
+                    "num_chunks": 0
+                }
+                return False
+            
+            # Store retrieval info even during relevance check
+            self._last_retrieval_info = {
+                "chunk_ids": [
+                    str(doc.metadata.get("id", doc.metadata.get("chunk_id", ""))) 
+                    for doc in documents
+                ],
+                "similarity_scores": [
+                    float(doc.metadata.get("similarity_score", 0.0)) 
+                    for doc in documents
+                ],
+                "num_chunks": len(documents)
+            }
+            
             return self.relevance_checker.check_relevance(query, documents)
+            
         except Exception as e:
             self.logger.error(f"Error checking query relevance: {e}")
-            return True 
+            self._last_retrieval_info = {
+                "chunk_ids": [],
+                "similarity_scores": [],
+                "num_chunks": 0
+            }
+            return True
+
+    def get_last_retrieval_info(self) -> Dict[str, Any]:
+        """
+        Get information about the last retrieval operation
+        Returns dict with chunk_ids, similarity_scores, and num_chunks
+        This is used by RAGChatHandler to save retrieval metadata to database
+        """
+        return self._last_retrieval_info.copy()
 
     def get_pipeline_info(self) -> Dict[str, Any]:
         """Get information about the RAG pipeline configuration"""

@@ -6,12 +6,11 @@ from backend.core.states.graph_states import RAGState
 from backend.models.llms.groq_llm import GroqLLM
 from backend.core.agents.cpa_handlers.explainable_units_handler import ExplainableUnitsHandler
 from backend.core.agents.cpa_handlers.rag_chat_handler import RAGChatHandler
-from backend.database.repositories.cpa_repo import content_processor_agent_repository
 from backend.utils.helpers.language_detection import returnlang
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import cpa_processor_state
-from backend.database.db import NeonDatabase
+
 logger = get_logger("content_processor_agent")
 
 
@@ -24,8 +23,7 @@ class ContentProcessorAgent:
     def __init__(self):
         self.llm = GroqLLM().llm
         self.current_state = None
-        self.cpa_state=cpa_processor_state()
-
+        self.cpa_state = cpa_processor_state()
 
         self.handlers = [
             ExplainableUnitsHandler(),
@@ -40,18 +38,13 @@ class ContentProcessorAgent:
         """Collect tools from all handlers"""
         tools = []
         for handler in self.handlers:
-            try:
-                tool = handler.tool()
-                tools.append(tool)
-                logger.info(f"Collected tool: {tool.name} from {handler.__class__.__name__}")
-            except Exception as e:
-                logger.error(f"Error collecting tool from {handler.__class__.__name__}: {e}")
-        
+            tool = handler.tool()
+            tools.append(tool)
+            logger.info(f"Collected tool: {tool.name} from {handler.__class__.__name__}")
         return tools
 
     def _create_agent(self) -> AgentExecutor:
         """Create simplified ReAct agent"""
-        
         # Load prompt template from YAML
         prompt_template = PromptLoader.load_system_prompt("prompts/content_processor_agent.yaml")
 
@@ -90,7 +83,8 @@ class ContentProcessorAgent:
             await self._check_rag_availability(state)
 
             # Detect language for response
-            detected_language = returnlang(query)
+            doc_content=state['documents']
+            detected_language = returnlang(doc_content) 
             logger.info(f"Detected language: {detected_language}")
 
             # Add language instruction to query
@@ -112,32 +106,18 @@ class ContentProcessorAgent:
                 logger.info("RAG context was successfully used in response generation")
 
             logger.info("Agent execution completed successfully")
-            # store in db
-            async with NeonDatabase.get_session() as session:
-                content_processor_repository=content_processor_agent_repository(session)
-                response= answer
-                tool=self.cpa_state.get("tool_used","")
-                chunks= self.cpa_state.get("chunks",[])
-                scores= self.cpa_state.get("similarity_scores",[])
-                await content_processor_repository.create(
-                    query,
-                    response,
-                    tool,
-                    chunks,
-                    scores
 
-                )
-                self.cpa_state.clear()
 
             return state
 
         except Exception as e:
             logger.error(f"Error in content processor agent: {e}")
-            state["answer"] = self._get_fallback_response(detected_language if 'detected_language' in locals() else 'English')
+            state["answer"] = self._get_fallback_response(detected_language)
             return state
         finally:
-            # Clean up handler states
+
             self._clear_handler_states()
+            self.cpa_state.clear()
     
     async def _check_rag_availability(self, state: RAGState):
         """Check if RAG documents are available in database"""
@@ -152,14 +132,15 @@ class ContentProcessorAgent:
             if rag_handler:
                 # Quick relevance check to see if we have documents
                 query = state.get("query", "Check for document availability").strip()
-                has_relevant, all_scores, chunks,tool_used= await rag_handler.check_relevance(query)
+                has_relevant, all_scores, chunks, tool_used = await rag_handler.check_relevance(query)
                 
                 if has_relevant:
                     logger.info("RAG documents available in database")
                     state["documents_available"] = True
-                    self.cpa_state["chunks"]=chunks
-                    self.cpa_state["similarity_scores"]=all_scores
-                    self.cpa_state["tool_used"]=tool_used
+                    # Store in CPA state for potential use by handlers
+                    self.cpa_state["chunks"] = chunks
+                    self.cpa_state["similarity_scores"] = all_scores
+                    self.cpa_state["tool_used"] = tool_used
                 else:
                     logger.info("No relevant documents found in database")
                     state["documents_available"] = False

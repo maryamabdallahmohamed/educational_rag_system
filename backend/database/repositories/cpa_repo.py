@@ -1,25 +1,29 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database.models.cpa import content_processor_agent   
-from typing import Optional
+from sqlalchemy import select, desc
+from backend.database.models.cpa import ContentProcessorAgent
+from typing import Optional, List
 import uuid
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
-class content_processor_agent_repository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
 
-    async def create(self, query: str, response: str, Tool: str, chunks_used: list, scores: list) -> content_processor_agent:
-        decision = content_processor_agent(
+class ContentProcessorAgentRepository:
+    """Repository for ContentProcessorAgent operations"""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create( self,  query: str,  response: str, tool_used: str, chunks_used: Optional[list] = None, similarity_scores: Optional[list] = None,units_generated_count: Optional[str] = None
+    ) -> ContentProcessorAgent:
+
+        cpa_record = ContentProcessorAgent(
             query=query,
             response=response,
-            Tool=Tool,
+            tool_used=tool_used,
             chunks_used=chunks_used,
-            similarity_scores=scores
+            similarity_scores=similarity_scores,
+            units_generated_count=units_generated_count
         )
-        self.db.add(decision)
-        await self.db.commit()
-        await self.db.refresh(decision)
-        return decision
-
-
-
+        self.session.add(cpa_record)
+        await self.session.commit()
+        await self.session.refresh(cpa_record)
+        return cpa_record
