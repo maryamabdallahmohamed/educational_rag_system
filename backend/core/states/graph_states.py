@@ -17,16 +17,23 @@ class RAGState(TypedDict, total=False):
     ingested: bool
     ingested_sources: List[str]
     conversation_id: str
-    qa_pairs: List[dict] 
-    question_count: int  
+    qa_pairs: List[dict]
+    question_count: int
     summary: str
     summary_title: str
     summary_key_points: List[str]
     feedback_loop: str
-    generated_units: List[dict]  # For storing generated learning units
-    conversation_history: List[dict]  # For storing conversation context
-    rag_context_used: bool  # Flag to indicate if RAG context was used
-    intent_classification: str  # Classified user intent
+    generated_units: List[dict]  
+    conversation_history: List[dict] 
+    rag_context_used: bool 
+    intent_classification: str 
+    documents_available: bool  
+
+class cpa_processor_state(TypedDict, total=False):
+    chunks: List
+    similarity_scores: List[float]
+    tool_used: str
+
 
 
 class QAPair(BaseModel):

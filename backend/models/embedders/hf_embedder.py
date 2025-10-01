@@ -10,8 +10,9 @@ os.environ['TQDM_DISABLE'] = '1'
 from sentence_transformers import SentenceTransformer
 
 
+
 class HFEmbedder(BaseEmbedder):
-    def __init__(self, model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", device=DEVICE):
+    def __init__(self, model_name='sentence-transformers/gtr-t5-base', device=DEVICE):
         self.model = SentenceTransformer(model_name, device=device, cache_folder=CACHE_DIR)
 
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -21,7 +22,8 @@ class HFEmbedder(BaseEmbedder):
             self.model.encode, 
             texts, 
             convert_to_numpy=True, 
-            show_progress_bar=False
+            show_progress_bar=False,
+            normalize_embeddings=True
         )
         return embeddings.tolist()
 
@@ -32,7 +34,8 @@ class HFEmbedder(BaseEmbedder):
             self.model.encode, 
             [text], 
             convert_to_numpy=True, 
-            show_progress_bar=False
+            show_progress_bar=False,
+            normalize_embeddings=True
         )
         return embedding[0].tolist()
 

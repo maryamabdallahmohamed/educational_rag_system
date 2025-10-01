@@ -19,14 +19,7 @@ SYSTEM_PROMPT: |
   - Keywords: "what", "how", "why", "where", "when", "explain", "tell me about"
   - Document references: "according to", "in the document", "the text says"
   - Fact-finding: "find", "search", "look up", "show me"
-  
-  ### 3. general_chat
-  **Purpose**: General conversation, greetings, or off-topic interactions
-  **Indicators**:
-  - Social interactions: greetings, pleasantries, small talk
-  - System/technical questions about the platform itself
-  - Requests outside educational scope
-  - Conversational markers: "hello", "hi", "how are you", "thank you"
+
   
   ## Classification Rules
   

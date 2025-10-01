@@ -1,39 +1,26 @@
-from typing import List, Dict, Any
-from langchain.schema import Document
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.tools import Tool
-from langchain.memory import ConversationBufferWindowMemory
 from backend.core.agents.base_handler import BaseHandler
-from backend.models.llms.groq_llm import GroqLLM
-from backend.models.reranker_model.reranker import Reranker
-from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
-
-
+from backend.core.rag.rag_orchestrator import RAGOrchestrator
+from backend.database.repositories.cpa_repo import ContentProcessorAgentRepository
+from backend.database.db import NeonDatabase
+import time
+import uuid
+import asyncio
 class RAGChatHandler(BaseHandler):
     """
     Handles RAG-based conversational chat with documents only
     """
-    
-    def __init__(self):
+
+    def __init__(self, similarity_threshold: float = 0.3, use_json_output: bool = False, use_learning_unit: bool = False):
         super().__init__()
-        self.llm_wrapper = GroqLLM()
-        self.llm = self.llm_wrapper.llm
-        self.reranker = Reranker()
-        self.relevance_threshold = 0.5 
-        self.memory = ConversationBufferWindowMemory(
-            k=50,  
-            return_messages=True
+        self.rag_orchestrator = RAGOrchestrator(
+            similarity_threshold=similarity_threshold,
+            top_k=10,
+            max_context_docs=5,
+            max_content_length=1000,
+            use_json_output=use_json_output,
+            use_learning_unit=use_learning_unit
         )
-        
-        # Load RAG prompt
-        rag_chat_template = PromptLoader.load_system_prompt("prompts/rag_chat.yaml")
-        self.rag_chat_prompt = ChatPromptTemplate.from_messages([
-            ("system", rag_chat_template),
-            ("human", "{query}")
-        ])
-        
-        self.rag_chain = self.rag_chat_prompt | self.llm | StrOutputParser()
     
     def tool(self) -> Tool:
         """Return configured LangChain Tool for RAG chat"""
@@ -45,134 +32,121 @@ class RAGChatHandler(BaseHandler):
     
     def _process_wrapper(self, query: str) -> str:
         """Wrapper for tool execution with error handling"""
-        try:
-            return self._process(query)
+        try:   
+            return asyncio.run(self._process(query))
         except Exception as e:
             return self._handle_error(e, "rag_chat")
     
-    def _process(self, query: str) -> str:
-        """Process RAG chat request"""
+    async def _process(self, query: str) -> str:
+        """Process RAG chat request using orchestrator with database tracking"""
+        start_time = time.time()
+        
         try:
-            documents = self.current_state.get('documents', [])
+            self.logger.info("Starting RAG query processing")
+
+            # Use the orchestrator to handle the complete RAG pipeline
+            # The orchestrator returns the response and internally handles retrieval
+            response = await self.rag_orchestrator.process_query(query)
+
+            # Get retrieval metadata from orchestrator if available
+            retrieval_info = self.rag_orchestrator.get_last_retrieval_info()
             
-            # Check if documents are available
-            if not documents:
-                return "I don't have any documents to reference. Please upload documents first before asking questions about their content."
-            
-            # Check document relevance
-            if not self._has_relevant_content(query, documents):
-                return "I couldn't find relevant information in the uploaded documents to answer your question. Please try rephrasing your question or check if the documents contain the information you're looking for."
-            
-            conversation_history = self._get_conversation_history()
-            context = self._prepare_context(documents, query)
-            response = self._generate_rag_response(query, context, conversation_history)
-            
-            # Update state and memory
+            # Extract chunk information
+            chunk_ids = retrieval_info.get("chunk_ids", [])
+            similarity_scores = retrieval_info.get("similarity_scores", [])
+
+            # Calculate processing time
+            processing_time = int((time.time() - start_time) * 1000)
+
+            # Save to database
+            if chunk_ids: 
+                await self._save_to_database(
+                    query=query,
+                    response=response,
+                    chunk_ids=chunk_ids,
+                    similarity_scores=similarity_scores,
+                    processing_time=processing_time
+                )
+
+            # Update state
             self.current_state["rag_context_used"] = True
-            self._update_memory(query, response)
-            
-            self.logger.info(f"Processed RAG query: {query[:50]}...")
-            
+            self.logger.info(f"Processed RAG query in {processing_time}ms")
+
             return response
-            
+
         except Exception as e:
             self.logger.error(f"Error in RAG chat processing: {e}")
             return f"I encountered an error while processing your question about the documents: {str(e)}"
-    
-    def _has_relevant_content(self, query: str, documents: List[Document]) -> bool:
-        """Check if documents have relevant content for the query"""
+
+    async def _save_to_database(
+        self,
+        query: str,
+        response: str,
+        chunk_ids: list,
+        similarity_scores: list,
+        processing_time: int
+    ) -> uuid.UUID:
+        """
+        Save RAG operation to database
+        Returns the CPA session ID
+        """
         try:
-            # Use reranker to check relevance
-            reranked_docs = self.reranker.rerank_chunks(query, documents)
-            
-            # If no reranked docs or relevance is too low, return False
-            if not reranked_docs:
-                return False
+            async with NeonDatabase.get_session() as session:
+                cpa_repo = ContentProcessorAgentRepository(session=session)
+
+                # Create CPA session record for RAG operation
+                cpa_record = await cpa_repo.create(
+                    query=query,
+                    response=response,
+                    tool_used="rag_chat",
+                    chunks_used=chunk_ids,
+                    similarity_scores=similarity_scores,
+                    units_generated_count=None, 
+                    processing_time_ms=str(processing_time)
+                )
+
+                self.logger.info(f"Saved RAG operation to database: {cpa_record.id}")
                 
-            best_score = reranked_docs[0].metadata.get("rerank_score", 0)
-            
-            # Check if relevance score meets threshold
-            return best_score >= self.relevance_threshold
-            
-        except Exception as e:
-            self.logger.error(f"Error checking content relevance: {e}")
-            # Default to True to allow processing, let the RAG chain handle it
-            return True
-    
-    def _prepare_context(self, documents: List[Document], query: str) -> str:
-        """Prepare context from documents for RAG using reranker"""
-        try:
-            # Use reranker to score and sort documents by relevance
-            reranked_docs = self.reranker.rerank_chunks(query, documents)
-            
-            # Take top 3 most relevant documents
-            top_docs = reranked_docs[:3]
-            
-            # Combine context
-            context_parts = []
-            for i, doc in enumerate(top_docs, 1):
-                # Limit content length
-                content = doc.page_content[:1000] + "..." if len(doc.page_content) > 1000 else doc.page_content
+                # Store session ID in state for reference
+                if self.current_state:
+                    self.current_state["cpa_session_id"] = str(cpa_record.id)
                 
-                # Add metadata if available
-                source = doc.metadata.get("source", f"Document {i}")
-                rerank_score = doc.metadata.get("rerank_score", 0.0)
-                
-                context_parts.append(f"Source: {source} (Relevance: {rerank_score:.3f})\nContent: {content}")
-            
-            return "\n\n---\n\n".join(context_parts)
-            
+                return cpa_record.id
+
         except Exception as e:
-            self.logger.error(f"Error preparing context with reranker: {e}")
-            # Fallback: use first few documents without reranking
-            return "\n\n".join([doc.page_content[:500] for doc in documents[:2]])
-    
-    def _get_conversation_history(self) -> str:
-        """Get conversation history from memory"""
+            self.logger.error(f"Error saving RAG operation to database: {e}")
+            # Don't raise - we don't want DB errors to break the user response
+            return None
+
+    async def check_relevance(self, query: str) -> tuple:
+        """
+        Check if query has relevant content
+        Returns: (has_relevant, similarity_scores, chunk_ids, tool_name)
+        """
         try:
-            # Get conversation history from memory
-            history = self.memory.chat_memory.messages
-            if not history:
-                return "No previous conversation."
+            # Use orchestrator to check relevance
+            has_relevant = await self.rag_orchestrator.check_query_relevance(query)
             
-            # Format history
-            formatted_history = []
-            for message in history[-6:]:  # Last 3 exchanges
-                role = "Human" if message.type == "human" else "Assistant"
-                formatted_history.append(f"{role}: {message.content}")
+            # Get retrieval info if available
+            retrieval_info = self.rag_orchestrator.get_last_retrieval_info()
+            chunk_ids = retrieval_info.get("chunk_ids", [])
+            scores = retrieval_info.get("similarity_scores", [])
             
-            return "\n".join(formatted_history)
+            return has_relevant, scores, chunk_ids, "rag_chat"
             
         except Exception as e:
-            self.logger.error(f"Error getting conversation history: {e}")
-            return "No conversation history available."
-    
-    def _generate_rag_response(self, query: str, context: str, history: str) -> str:
-        """Generate RAG-based response"""
-        try:
-            chain_input = {
-                "query": query,
-                "context": context,
-                "conversation_history": history
-            }
-            
-            response = self.rag_chain.invoke(chain_input)
-            
-            return response
-            
-        except Exception as e:
-            self.logger.error(f"Error generating RAG response: {e}")
-            return f"I'm sorry, I encountered an error while processing your question about the document: {str(e)}"
-    
-    def _update_memory(self, query: str, response: str):
-        """Update conversation memory"""
-        try:
-            self.memory.chat_memory.add_user_message(query)
-            self.memory.chat_memory.add_ai_message(response)
-        except Exception as e:
-            self.logger.error(f"Error updating memory: {e}")
-    
+            self.logger.error(f"Error checking relevance: {e}")
+            return False, [], [], "rag_chat"
+
+    def get_pipeline_info(self) -> dict:
+        """Get RAG pipeline configuration info"""
+        return self.rag_orchestrator.get_pipeline_info()
+
+    def update_configuration(self, **kwargs):
+        """Update RAG pipeline configuration"""
+        self.rag_orchestrator.update_configuration(**kwargs)
+
     def clear_memory(self):
         """Clear conversation memory"""
-        self.memory.clear()
+        self.rag_orchestrator.clear_conversation_history()
         self.logger.info("Conversation memory cleared")
