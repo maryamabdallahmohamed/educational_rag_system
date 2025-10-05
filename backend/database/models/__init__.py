@@ -7,6 +7,7 @@ from .cpa import ContentProcessorAgent
 from .learning_unit import LearningUnit
 from .questionanswer import QuestionAnswer
 from .qa_Item import QuestionAnswerItem
+from .summary import SummaryRecord
 
 __all__ = ["Base", "Document", "Chunk", "Conversation", "RouterDecision", "RouteType","ContentProcessorAgent","LearningUnit","QuestionAnswer",
-           "QuestionAnswerItem"]
+           "QuestionAnswerItem",'SummaryRecord']

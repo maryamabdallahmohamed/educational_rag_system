@@ -1,3 +1,4 @@
+# backend/core/nodes/summarization_node.py
 from langchain.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 from backend.utils.logger_config import get_logger
@@ -6,8 +7,9 @@ from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import ValidationError
 from typing import List
+from backend.database.repositories.summary_repo import SummaryRepository
+from backend.database.db import NeonDatabase
 
-logger = get_logger("summerization_module")
 
 class SummarizationNode:
     """
@@ -34,7 +36,7 @@ class SummarizationNode:
         
         self.logger.info("Summarization Node initialized successfully")
 
-    def process(self, state: RAGState) -> RAGState:
+    async def process(self, state: RAGState) -> RAGState:
         """
         Generate a concise study summary from documents stored in state.
         """
@@ -82,13 +84,17 @@ class SummarizationNode:
             title = result.get('title', 'Document Summary')
             content = result.get('content', 'Summary not available')
             key_points = result.get('key_points', ['No key points extracted'])
+            language = result.get('language', detected_lang)
             
-            # Validate and store results
+            # Validate and store results in state
             state['summary_title'] = title
             state['summary'] = content
             state['key_points'] = key_points
             
             self.logger.info("Summary generated successfully")
+            
+            # Save to database
+            await self.add_to_db(title, content, key_points, language)
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))
@@ -97,7 +103,7 @@ class SummarizationNode:
             state["key_points"] = ["Error in summary generation"]
             
         except Exception as e:
-            self.logger.error("Summary generation failed: %s", str(e))
+            self.logger.error("Summary generation failed: %s", str(e), exc_info=True)
             state["summary_title"] = "Summary Error"
             state["summary"] = "Error during summary generation."
             state["key_points"] = ["Error in summary generation"]
@@ -125,9 +131,40 @@ class SummarizationNode:
             "detected_lang": detected_lang,
             "format_instructions": self.parser.get_format_instructions()
         })
+    
+    async def add_to_db(self, title: str, content: str, key_points: List[str], language: str):
+        """Save summary to database."""
+        if not title or not content:
+            self.logger.warning("No summary to save to database")
+            return
+        
+        session = NeonDatabase.get_session()
+        
+        try:
+            repo = SummaryRepository(session)
+            
+            # Create the summary record
+            summary_record = await repo.create(
+                title=title,
+                content=content,
+                key_points=key_points,
+                language=language
+            )
+            
+            # Commit the transaction
+            await session.commit()
+            
+            self.logger.info("Successfully saved summary to database with ID: %s", summary_record.id)
+            
+        except Exception as e:
+            self.logger.error("Failed to save summary to database: %s", str(e), exc_info=True)
+            await session.rollback()
+        finally:
+            await session.close()
 
 
 _summarization_node_instance = None
+
 
 def get_summarization_node() -> SummarizationNode:
     """Get a singleton summarization node instance for reuse across calls."""
@@ -136,10 +173,11 @@ def get_summarization_node() -> SummarizationNode:
         _summarization_node_instance = SummarizationNode()
     return _summarization_node_instance
 
-def summarization_node_singleton(state: RAGState) -> RAGState:
+
+async def summarization_node_singleton(state: RAGState) -> RAGState:
     """
-    Singleton wrapper for summarization node - reuses the same instance.
+    Async singleton wrapper for summarization node - reuses the same instance.
     More efficient for multiple calls.
     """
     summarization_node = get_summarization_node()
-    return summarization_node.process(state)
+    return await summarization_node.process(state)
