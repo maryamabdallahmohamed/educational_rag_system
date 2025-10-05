@@ -5,6 +5,9 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 from backend.core.states.graph_states import RAGState,QAResponse
+from backend.database.repositories.qa_repo import QuestionAnswerRepository
+from backend.database.repositories.qa_item_repo import QuestionAnswerItemRepository
+from backend.database.db import NeonDatabase, Base
 class QANode:
     """
     Modular Q&A generation node for RAG system.
@@ -30,7 +33,7 @@ class QANode:
         
         self.logger.info("QA Node initialized successfully")
     
-    def process(self, state: RAGState) -> RAGState:
+    async def process(self, state: RAGState) -> RAGState:
         """
         Generate study Q&A pairs from documents stored in state["documents"].
         
@@ -65,6 +68,7 @@ class QANode:
             state["answer"] = f"Generated {len(state['qa_pairs'])} Q&A pairs successfully."
             
             self.logger.info("Q&A generation successful - Generated %d pairs", len(state["qa_pairs"]))
+            await self.add_to_db(result.get("qa_pairs", []))
             
         except Exception as e:
             self.logger.error("Q&A generation failed: %s", str(e))
@@ -98,11 +102,51 @@ class QANode:
         """Update the default question count."""
         self.default_question_count = count
         self.logger.info("Updated default question count to %d", count)
-    
 
-
-
-
+    async def add_to_db(self, qa_items):
+        """Save Q&A pairs to database with individual item references."""
+        session = NeonDatabase.get_session()
+        
+        try:
+            qa_repo = QuestionAnswerRepository(session)
+            item_repo = QuestionAnswerItemRepository(session)
+            
+            # Format data for JSONB storage
+            qa_data = {"qa_pairs": qa_items}
+            
+            # Create the main QuestionAnswer record
+            qa_record = await qa_repo.create(qa_data=qa_data)
+            await session.flush()  # Ensure qa_record.id is available
+            
+            self.logger.info("Created QuestionAnswer record with ID: %s", qa_record.id)
+            
+            # Create individual QuestionAnswerItem records for each Q&A pair
+            for index, qa_pair in enumerate(qa_items):
+                question_text = qa_pair.get("question", "")
+                answer_text = qa_pair.get("answer", "")
+                
+                await item_repo.create(
+                    question_answer_id=qa_record.id,
+                    qa_index=index,
+                    question_text=question_text,
+                    answer_text=answer_text
+                )
+            
+            # Commit all changes
+            await session.commit()
+            
+            self.logger.info(
+                "Successfully saved %d Q&A pairs with %d individual items to database", 
+                len(qa_items), 
+                len(qa_items)
+            )
+            
+        except Exception as e:
+            self.logger.error("Failed to save Q&A pairs to database: %s", str(e), exc_info=True)
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 _qa_node_instance = None
 
 def get_qa_node() -> QANode:
@@ -112,10 +156,10 @@ def get_qa_node() -> QANode:
         _qa_node_instance = QANode()
     return _qa_node_instance
 
-def qa_node_singleton(state: RAGState) -> RAGState:
+async def qa_node_singleton(state: RAGState) -> RAGState:
     """
     Singleton wrapper for QA node - reuses the same instance.
     More efficient for multiple calls.
     """
     qa_node = get_qa_node()
-    return qa_node.process(state)
+    return await qa_node.process(state)
