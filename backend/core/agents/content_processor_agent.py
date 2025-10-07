@@ -11,6 +11,23 @@ from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import cpa_processor_state
 
+# LangSmith imports for tracing
+try:
+    from langsmith import traceable
+    from langsmith.run_helpers import get_current_run_tree
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
+    # Create dummy decorator if langsmith not installed
+    def traceable(func):
+        return func
+
+from backend.utils.langsmith_config import (
+    is_langsmith_enabled,
+    get_run_metadata,
+    get_langsmith_url
+)
+
 logger = get_logger("content_processor_agent")
 
 
@@ -68,12 +85,33 @@ class ContentProcessorAgent:
             handle_parsing_errors=True
         )
 
+    @traceable(
+        name="content_processor_agent_process",
+        run_type="chain",
+        tags=["content-processor", "rag", "document-analysis"]
+    )
     async def process(self, state: RAGState) -> RAGState:
         """Process query using simplified agent"""
         query = state.get("query", "").strip()
         if not query:
             state["answer"] = "I didn't receive any query. How can I help you?"
             return state
+
+        # Add metadata to trace if LangSmith is enabled
+        if LANGSMITH_AVAILABLE and is_langsmith_enabled():
+            try:
+                run_tree = get_current_run_tree()
+                if run_tree:
+                    metadata = get_run_metadata(state)
+                    metadata.update({
+                        "agent_type": "content_processor",
+                        "query_length": len(query),
+                        "has_documents": bool(state.get("documents")),
+                    })
+                    run_tree.update(metadata=metadata)
+                    logger.debug(f"Added metadata to CPA trace: {metadata}")
+            except Exception as e:
+                logger.debug(f"Could not add metadata to trace: {e}")
 
         try:
             # Set current state for all handlers
@@ -105,17 +143,39 @@ class ContentProcessorAgent:
             if state.get("rag_context_used", False):
                 logger.info("RAG context was successfully used in response generation")
 
-            logger.info("Agent execution completed successfully")
+            # Mark success in trace
+            if LANGSMITH_AVAILABLE and is_langsmith_enabled():
+                try:
+                    run_tree = get_current_run_tree()
+                    if run_tree:
+                        run_tree.update(metadata={
+                            "success": True,
+                            "response_length": len(answer),
+                            "rag_used": state.get("rag_context_used", False)
+                        })
+                        logger.info(f"CPA Trace URL: {get_langsmith_url(str(run_tree.id))}")
+                except Exception as e:
+                    logger.debug(f"Could not update trace: {e}")
 
+            logger.info("Agent execution completed successfully")
 
             return state
 
         except Exception as e:
             logger.error(f"Error in content processor agent: {e}")
+            
+            # Mark error in trace
+            if LANGSMITH_AVAILABLE and is_langsmith_enabled():
+                try:
+                    run_tree = get_current_run_tree()
+                    if run_tree:
+                        run_tree.update(metadata={"success": False, "error": str(e)})
+                except Exception as trace_error:
+                    logger.debug(f"Could not update trace with error: {trace_error}")
+            
             state["answer"] = self._get_fallback_response(detected_language)
             return state
         finally:
-
             self._clear_handler_states()
             self.cpa_state.clear()
     

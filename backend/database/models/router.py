@@ -8,6 +8,7 @@ class RouteType(enum.Enum):
     QA = "qa"
     SUMMARIZATION = "summarization"
     CONTENT_PROCESSOR = "content_processor_agent"
+    TUTORING = "tutor_agent"
 
 
 class RouterDecision(Base):

@@ -8,8 +8,10 @@ A sophisticated AI-powered content processing system built with LangGraph that p
 - **RAG Chat**: Intelligent question-answering based on uploaded documents
 - **General Chat**: AI assistant for general queries when no documents are available
 - **Explainable Learning Units**: Generate structured educational content from documents
+- **Personalized Tutoring**: Adaptive AI tutor with learner profiling and personalized explanations
 - **Multi-language Support**: Supports both English and Arabic
 - **Modular Architecture**: Handler-based system for easy extensibility
+- **🔍 LangSmith Tracing**: Production monitoring, debugging, and performance analysis
 
 ## 📁 Project Structure
 
@@ -226,8 +228,58 @@ class CustomHandler(BaseHandler):
 ## 📊 Monitoring and Logging
 
 - **Logs**: Application logs are stored in `logs/app.log`
-- **LangSmith**: Optional integration for request tracing
+- **LangSmith**: Optional integration for request tracing and production monitoring
 - **Error Handling**: Comprehensive error handling with fallback responses
+
+### LangSmith Integration
+
+This system includes production-grade tracing with LangSmith for:
+- Real-time monitoring of agent workflows
+- Debugging personalized tutoring sessions
+- Performance analysis and optimization
+- Cost tracking (token usage)
+
+To enable LangSmith tracing:
+1. Sign up at [https://smith.langchain.com](https://smith.langchain.com)
+2. Get your API key
+3. Update `.env`:
+   ```env
+   LANGCHAIN_TRACING_V2=true
+   LANGSMITH_API_KEY=your_key_here
+   LANGCHAIN_PROJECT=educational-rag-system
+   ```
+
+**See [LANGSMITH_INTEGRATION.md](LANGSMITH_INTEGRATION.md) for detailed documentation.**
+
+## 🧪 Testing
+
+### Unit Tests
+```bash
+# Run all tests
+pytest tests/test_tutor_agent.py -v
+
+# Run specific handler tests
+pytest tests/test_tutor_agent.py::TestSessionManager -v
+```
+
+### Manual Testing with LangSmith
+```bash
+# Run all tutoring scenarios
+python tests/manual_test_tutor.py
+
+# Run specific scenario (1-6)
+python tests/manual_test_tutor.py 1
+```
+
+The manual test script provides 6 real-world tutoring scenarios:
+1. Visual Learner - Photosynthesis
+2. Struggling Learner - Fractions
+3. Advanced Learner - Calculus
+4. Practice Generation - Quadratic Equations
+5. Step-by-Step Explanation
+6. Content Adaptation - Simplification
+
+**See [tests/README.md](tests/README.md) for complete testing documentation.**
 
 ## 🤝 Contributing
 
