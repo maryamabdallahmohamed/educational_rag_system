@@ -9,13 +9,14 @@ from backend.core.states.graph_states import QAResponse
 from backend.database.repositories.qa_repo import QuestionAnswerRepository
 from backend.database.repositories.qa_item_repo import QuestionAnswerItemRepository
 from backend.database.db import NeonDatabase
-from langgraph.types import RunnableConfig
-from langchain_core.runnables import RunnableLambda
+from backend.utils.singleton import SingletonMeta
 
-class QANode:
+class QANode(metaclass=SingletonMeta):
     """Modular Q&A generation node for RAG system."""
 
     def __init__(self, default_question_count: int = 10):
+        if getattr(self, "_initialized", False):
+            return
         self.logger = get_logger("qa_node")
         self.llm = GroqLLM()
         self.default_question_count = default_question_count
@@ -24,7 +25,7 @@ class QANode:
         template = PromptLoader.load_system_prompt("prompts/qa_prompt.yaml")
         self.prompt = ChatPromptTemplate.from_template(template)
         self.chain = self.prompt | self.llm.llm | self.parser
-
+        self._initialized = True
         self.logger.info("QA Node initialized successfully")
 
     async def process(self, query, documents: List) -> QAResponse:
