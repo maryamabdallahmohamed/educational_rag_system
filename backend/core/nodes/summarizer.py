@@ -9,15 +9,18 @@ from pydantic import ValidationError
 from typing import List
 from backend.database.repositories.summary_repo import SummaryRepository
 from backend.database.db import NeonDatabase
+from backend.utils.singleton import SingletonMeta
 import json
 
-class SummarizationNode:
+class SummarizationNode(metaclass=SingletonMeta):
     """
     Modular summarization node for RAG system.
     Generates concise summaries from documents with structured output.
     """
     
     def __init__(self):
+        if getattr(self, "_initialized", False):
+            return
         self.logger = get_logger("summarization_node")
         llm_wrapper = GroqLLM()
         self.llm = llm_wrapper.llm
@@ -35,6 +38,7 @@ class SummarizationNode:
         self.chain = self.prompt | self.llm | self.parser
         
         self.logger.info("Summarization Node initialized successfully")
+        self._initialized = True
 
     async def process(self, query, documents) -> RAGState:
         """
