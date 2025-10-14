@@ -27,13 +27,10 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm | parser
 
-async def router_node(state: RAGState, config: RunnableConfig = None) -> RAGState:
+async def router_node(query):
     """Router node that determines next step based on user input"""
 
-    user_input = state.get("query", "").strip()
-    if not user_input:
-        state["next_step"] = "content_processor_agent"
-        return state
+    user_input = query.strip()
 
     try:
         # Run LLM classification in a thread 
@@ -45,9 +42,6 @@ async def router_node(state: RAGState, config: RunnableConfig = None) -> RAGStat
         )
 
         route = routing_result["route"]
-        state["next_step"] = route
-        state["router_confidence"] = routing_result.get("confidence", 0.0)
-        state["router_reasoning"] = routing_result.get("reasoning", "LLM classification")
 
         # Save to DB asynchronously
         try:
@@ -71,6 +65,12 @@ async def router_node(state: RAGState, config: RunnableConfig = None) -> RAGStat
             logger.error(f"Failed to save router decision: {db_error}")
 
     except Exception as e:
-        state["next_step"] = "content_processor_agent"
+        logger.error(f"Router node error: {e}")
 
-    return state
+def router_runnable() -> RunnableConfig:
+    return RunnableConfig(
+        runnable=router_node,
+        name="router_node",
+        description="Routes the query to the appropriate next step based on its content.",
+        tags=["router", "classification", "llm"]
+    )
