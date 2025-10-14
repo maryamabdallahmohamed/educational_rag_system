@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from typing import List
 from backend.database.repositories.summary_repo import SummaryRepository
 from backend.database.db import NeonDatabase
-
+import json
 
 class SummarizationNode:
     """
@@ -36,39 +36,34 @@ class SummarizationNode:
         
         self.logger.info("Summarization Node initialized successfully")
 
-    async def process(self, state: RAGState) -> RAGState:
+    async def process(self, query, documents) -> RAGState:
         """
         Generate a concise study summary from documents stored in state.
         """
         
         # Get query string (instruction), fallback if missing
-        query = state.get("query", "Generate a comprehensive summary of this document")
+        query = query
         self.logger.debug("Received query: %s", query)
         
         # Load documents and prepare context
-        docs, detected_lang = self._load_content(state)
-        self.logger.debug("Loaded %d documents", len(docs))
-        self.logger.debug("Detected language: %s", detected_lang)
-        
-        if not docs:
+        language = documents[0].metadata['language']
+        context = documents
+        self.logger.debug("Loaded %d documents", len(documents))
+        self.logger.debug("Detected language: %s", language)
+
+        if not context:
             self.logger.warning("No documents available in state")
-            state["summary"] = None
-            state["answer"] = "No documents available in state to summarize."
-            return state
-        
-        # Prepare context from documents
-        context = self._prepare_context(docs)
+            return None
         self.logger.debug("Prepared context of length: %d characters", len(context))
         
         try:
             # Generate summary using the chain
-            result = self._generate_summary(context, query, detected_lang)
+            result = self._generate_summary(context, query, language)
             self.logger.debug("Raw LLM output: %s", result)
             
             # Handle case where result might be a string instead of dict
             if isinstance(result, str):
                 self.logger.warning("LLM returned string instead of JSON, attempting to parse")
-                import json
                 try:
                     result = json.loads(result)
                 except json.JSONDecodeError:
@@ -78,18 +73,13 @@ class SummarizationNode:
                         "title": "Document Summary",
                         "content": result[:500] + "..." if len(result) > 500 else result,
                         "key_points": ["Summary generated from document content"],
-                        "language": detected_lang
+                        "language": language
                     }
             
             title = result.get('title', 'Document Summary')
             content = result.get('content', 'Summary not available')
             key_points = result.get('key_points', ['No key points extracted'])
-            language = result.get('language', detected_lang)
-            
-            # Validate and store results in state
-            state['summary_title'] = title
-            state['summary'] = content
-            state['key_points'] = key_points
+            language = result.get('language', language)
             
             self.logger.info("Summary generated successfully")
             
@@ -98,29 +88,11 @@ class SummarizationNode:
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))
-            state["summary_title"] = "Summary Error"
-            state["summary"] = "Error: Invalid summary format generated."
-            state["key_points"] = ["Error in summary generation"]
-            
+
         except Exception as e:
             self.logger.error("Summary generation failed: %s", str(e), exc_info=True)
-            state["summary_title"] = "Summary Error"
-            state["summary"] = "Error during summary generation."
-            state["key_points"] = ["Error in summary generation"]
-        
-        return state
 
-    def _load_content(self, state: RAGState) -> tuple[List, str]:
-        """Load documents from state and detect language."""
-        docs = state.get("documents", [])
-        detected_lang = "ar"
-        if docs:
-            detected_lang = docs[0].metadata.get("language", "ar")
-        return docs, detected_lang
-
-    def _prepare_context(self, docs: List) -> str:
-        """Combine document contents into a single context string."""
-        return "\n\n".join(doc.page_content for doc in docs)
+        return result
 
     def _generate_summary(self, context: str, query: str, detected_lang: str):
         """Generate summary using the LLM chain - returns Summary object directly."""
@@ -161,23 +133,3 @@ class SummarizationNode:
             await session.rollback()
         finally:
             await session.close()
-
-
-_summarization_node_instance = None
-
-
-def get_summarization_node() -> SummarizationNode:
-    """Get a singleton summarization node instance for reuse across calls."""
-    global _summarization_node_instance
-    if _summarization_node_instance is None:
-        _summarization_node_instance = SummarizationNode()
-    return _summarization_node_instance
-
-
-async def summarization_node_singleton(state: RAGState) -> RAGState:
-    """
-    Async singleton wrapper for summarization node - reuses the same instance.
-    More efficient for multiple calls.
-    """
-    summarization_node = get_summarization_node()
-    return await summarization_node.process(state)
