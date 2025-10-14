@@ -1,5 +1,5 @@
 from langgraph.types import RunnableConfig
-from backend.core.states.graph_states import RAGState, RouterOutput
+from backend.core.states.graph_states import  RouterOutput
 from backend.utils.logger_config import get_logger
 from langchain_core.output_parsers import JsonOutputParser
 from backend.models.llms.groq_llm import GroqLLM
@@ -61,6 +61,7 @@ async def router_node(query):
                     chosen_route=route_enum
                 )
                 logger.info(f"Router decision saved successfully: {decision.id}")
+                return route
         except Exception as db_error:
             logger.error(f"Failed to save router decision: {db_error}")
 
