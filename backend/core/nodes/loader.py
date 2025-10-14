@@ -8,12 +8,6 @@ from backend.utils.logger_config import get_logger
 from backend.core.builders.document_builder import DocumentBuilder
 
 logger = get_logger("loader")
-@dataclass
-class RAGState:
-    file_paths: List[str] = field(default_factory=list)
-    documents: List[Document] = field(default_factory=list)
-    ingested_sources: Set[str] = field(default_factory=set)
-
 
 
 class LoadDocuments:
@@ -25,15 +19,12 @@ class LoadDocuments:
             "processor": type(self.processor).__name__,
             "builder": type(self.builder).__name__
         })
-    def load_document(self, path: str) -> Optional[Document]:
-        """Load a single document if not already ingested.
 
-        Returns the built Document on success, or None on failure / if skipped.
-        """
-        logger.debug("load_document called", extra={"path": path})
+    def load_document(self, path: str) -> Optional[Document]:
+        """Load and preprocess a single document. Returns a built Document."""
         if path in self.ingested_documents:
             logger.info("Document already ingested", extra={"path": path})
-            return
+            return None
 
         try:
             content = self.processor.load_and_preprocess_data(path)
@@ -41,14 +32,7 @@ class LoadDocuments:
                 logger.warning("No valid content", extra={"path": path})
                 return None
 
-
-            content_len = len(content)
-            logger.debug("Content loaded",
-                         extra={"path": path, "content_len": content_len, "snippet": content[:200]})
-
             language = returnlang(content)
-            logger.debug("Language detected", extra={"path": path, "language": language})
-
             built_doc = (
                 self.builder.set_content(content)
                 .add_metadata("source", path)
@@ -57,15 +41,21 @@ class LoadDocuments:
                 .build()
             )
 
-            # mark as ingested and log summary info
             self.ingested_documents.add(path)
-            logger.info("Document ingested", extra={"path": path, "content_len": content_len, "language": language})
-            logger.debug("Built document metadata", extra={"path": path, "metadata_keys": list(built_doc.metadata.keys()) if hasattr(built_doc, 'metadata') else None})
+            logger.info("Document ingested", extra={"path": path, "language": language})
             return built_doc
 
         except Exception as e:
             logger.exception("Error loading document", extra={"path": path, "error": str(e)})
             return None
 
-
-
+    def load_all(self, paths: List[str]) -> List[Document]:
+        """Load multiple documents and return them as a list."""
+        logger.info("Starting batch load", extra={"num_files": len(paths)})
+        documents = []
+        for path in paths:
+            doc = self.load_document(path)
+            if doc:
+                documents.append(doc)
+        logger.info("Batch load complete", extra={"num_loaded": len(documents)})
+        return documents
