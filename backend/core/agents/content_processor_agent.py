@@ -68,23 +68,22 @@ class ContentProcessorAgent:
             handle_parsing_errors=True
         )
 
-    async def process(self, state: RAGState) -> RAGState:
+    async def process(self, query, document) -> RAGState:
         """Process query using simplified agent"""
-        query = state.get("query", "").strip()
+        detected_language = document[0].metadata['language']
+        query = query.strip()
         if not query:
-            state["answer"] = "I didn't receive any query. How can I help you?"
-            return state
+            answer = "I didn't receive any query. How can I help you?"
+            return answer
 
         try:
             # Set current state for all handlers
-            self._set_handler_states(state)
+            self._set_handler_states()
 
             # Check if we have documents in database for RAG operations
-            await self._check_rag_availability(state)
+            await self._check_rag_availability(query)
 
             # Detect language for response
-            doc_content=state['documents']
-            detected_language = returnlang(doc_content) 
             logger.info(f"Detected language: {detected_language}")
 
             # Add language instruction to query
@@ -99,27 +98,27 @@ class ContentProcessorAgent:
 
             # Extract the final answer
             answer = result.get("output", "I couldn't process your request properly.")
-            state["answer"] = answer
+            self.current_state["answer"] = answer
 
             # Update RAG context usage flag if it was used
-            if state.get("rag_context_used", False):
+            if self.current_state.get("rag_context_used", False):
                 logger.info("RAG context was successfully used in response generation")
 
             logger.info("Agent execution completed successfully")
 
 
-            return state
+            return self.current_state
 
         except Exception as e:
             logger.error(f"Error in content processor agent: {e}")
-            state["answer"] = self._get_fallback_response(detected_language)
-            return state
+            self.current_state["answer"] = self._get_fallback_response(detected_language)
+            return self.current_state
         finally:
 
             self._clear_handler_states()
             self.cpa_state.clear()
     
-    async def _check_rag_availability(self, state: RAGState):
+    async def _check_rag_availability(self,query):
         """Check if RAG documents are available in database"""
         try:
             # Get RAG handler to check availability
@@ -131,31 +130,30 @@ class ContentProcessorAgent:
 
             if rag_handler:
                 # Quick relevance check to see if we have documents
-                query = state.get("query", "Check for document availability").strip()
                 has_relevant, all_scores, chunks, tool_used = await rag_handler.check_relevance(query)
                 
                 if has_relevant:
                     logger.info("RAG documents available in database")
-                    state["documents_available"] = True
+                    self.current_state["documents_available"] = True
                     # Store in CPA state for potential use by handlers
                     self.cpa_state["chunks"] = chunks
                     self.cpa_state["similarity_scores"] = all_scores
                     self.cpa_state["tool_used"] = tool_used
                 else:
                     logger.info("No relevant documents found in database")
-                    state["documents_available"] = False
+                    self.current_state["documents_available"] = False
             else:
                 logger.warning("RAG handler not found")
-                state["documents_available"] = False
+                self.current_state["documents_available"] = False
 
         except Exception as e:
             logger.error(f"Error checking RAG availability: {e}")
-            state["documents_available"] = False
+            self.current_state["documents_available"] = False
 
-    def _set_handler_states(self, state: RAGState):
+    def _set_handler_states(self):
         """Set state for all handlers"""
         for handler in self.handlers:
-            handler.set_state(state)
+            handler.set_state(self.current_state)
     
     def _clear_handler_states(self):
         """Clear state from all handlers"""
