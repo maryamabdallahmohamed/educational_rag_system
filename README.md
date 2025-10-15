@@ -110,6 +110,50 @@ langgraph up
 
 The application will be available at the configured endpoint.
 
+### FastAPI Service
+
+A lightweight FastAPI service is available for testing the core nodes through tools such as Postman:
+
+```bash
+uvicorn backend.api.main:app --reload
+```
+
+Available endpoints:
+
+- `GET /health` – basic health check.
+- `POST /api/summaries` – generate summaries from one or more documents:
+   ```json
+   {
+      "query": "Summarize the content",
+      "documents": [
+         {"content": "Raw text", "metadata": {"language": "en"}}
+      ]
+   }
+   ```
+- `POST /api/qa` – generate question-answer pairs from documents:
+   ```json
+   {
+      "query": "Create study questions",
+      "question_count": 3,
+      "documents": [
+         {"content": "Raw text", "metadata": {"language": "en"}}
+      ]
+   }
+   ```
+- `POST /api/pipeline/ingest` – end-to-end flow from loading to storage to routing:
+   ```json
+   {
+      "query": "What should happen next?",
+      "document_paths": ["/abs/path/to/local.json"],
+      "documents": [
+         {"content": "Inline text", "metadata": {"title": "Manual entry"}}
+      ]
+   }
+   ```
+   This loads any provided file paths via the existing loader, stores chunks and embeddings, and finally returns the router decision.
+
+The service is intentionally modular: new routers or routes can be placed under `backend/api/routes/` and registered within `backend/api/main.py` as additional features are added.
+
 ### Core Components
 
 #### 1. Content Processor Agent
