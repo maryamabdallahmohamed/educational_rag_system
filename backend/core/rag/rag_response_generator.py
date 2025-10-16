@@ -5,6 +5,7 @@ from langchain.memory import ConversationBufferWindowMemory
 from backend.models.llms.groq_llm import GroqLLM
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import LearningUnit
+from backend.utils.helpers.language_detection import returnlang
 import logging
 
 
@@ -80,11 +81,13 @@ class RAGResponseGenerator:
 
     def generate_response(self, query: str, context: str, conversation_history: str = None) -> Union[str, Dict[str, Any], LearningUnit]:
         """Generate response using RAG chain"""
+        language = returnlang(context)
         try:
             chain_input = {
                 "query": query,
                 "context": context,
-                "conversation_history": conversation_history or "No previous conversation."
+                "conversation_history": conversation_history or "No previous conversation.",
+                "lang": language
             }
 
             response = self.rag_chain.invoke(chain_input)

@@ -27,13 +27,27 @@ class RAGChatHandler(BaseHandler):
         return Tool(
             name="rag_chat",
             description="Answer questions about uploaded documents using RAG (Retrieval-Augmented Generation). Requires documents to be available.",
-            func=self._process_wrapper
+            func=self._process_wrapper,
+            coroutine=self._process,
         )
     
     def _process_wrapper(self, query: str) -> str:
         """Wrapper for tool execution with error handling"""
         try:   
-            return asyncio.run(self._process(query))
+            # If already inside an event loop (e.g., FastAPI or async agent),
+            # submit the coroutine to that loop and wait thread-safely.
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                # We're in an async context; schedule on this loop without creating a new one.
+                future = asyncio.run_coroutine_threadsafe(self._process(query), loop)
+                return future.result()
+            else:
+                # No running loop in this thread; safe to create one just for this call.
+                return asyncio.run(self._process(query))
         except Exception as e:
             return self._handle_error(e, "rag_chat")
     
@@ -101,8 +115,7 @@ class RAGChatHandler(BaseHandler):
                     tool_used="rag_chat",
                     chunks_used=chunk_ids,
                     similarity_scores=similarity_scores,
-                    units_generated_count=None, 
-                    processing_time_ms=str(processing_time)
+                    units_generated_count=None
                 )
 
                 self.logger.info(f"Saved RAG operation to database: {cpa_record.id}")

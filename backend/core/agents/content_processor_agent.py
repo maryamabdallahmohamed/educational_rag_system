@@ -2,7 +2,6 @@ from typing import List
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
-from backend.core.states.graph_states import RAGState
 from backend.models.llms.groq_llm import GroqLLM
 from backend.core.agents.cpa_handlers.explainable_units_handler import ExplainableUnitsHandler
 from backend.core.agents.cpa_handlers.rag_chat_handler import RAGChatHandler
@@ -22,7 +21,7 @@ class ContentProcessorAgent:
 
     def __init__(self):
         self.llm = GroqLLM().llm
-        self.current_state = None
+        self.current_state = {}
         self.cpa_state = cpa_processor_state()
 
         self.handlers = [
@@ -68,9 +67,9 @@ class ContentProcessorAgent:
             handle_parsing_errors=True
         )
 
-    async def process(self, query, document) -> RAGState:
+    async def process(self, query, document) :
         """Process query using simplified agent"""
-        detected_language = document[0].metadata['language']
+        detected_language = document.metadata['language']
         query = query.strip()
         if not query:
             answer = "I didn't receive any query. How can I help you?"
