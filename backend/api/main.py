@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from typing import Dict, Any
 import asyncio
-
+from backend.core.agents.content_processor_agent import ContentProcessorAgent
 from backend.core.nodes.loader import LoadDocuments
 from backend.core.nodes.chunk_store import ChunkAndStoreNode
 from backend.core.nodes.qa_node import QANode
@@ -15,7 +15,7 @@ document_loader = LoadDocuments()
 chunk_store_node = ChunkAndStoreNode()
 qa_node = QANode()
 summarization_node = SummarizationNode()
-
+cpa_agent = ContentProcessorAgent()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
 
@@ -74,6 +74,21 @@ async def summarize_endpoint(query: str = Form(...)):
 
     document = uploaded_documents["latest"]
     result = await summarization_node.process(query=query, documents=[document])
+    return {"query": query, "result": result}
+
+# ---------------------------------------------------------------------------- #
+# CPA Agent Endpoint
+# ---------------------------------------------------------------------------- #
+
+
+@app.post("/api/cpa_agent")
+async def cpa_agent_endpoint(query: str = Form(...)):
+    """Run the Content Processor Agent (CPA) on the latest uploaded document."""
+    if "latest" not in uploaded_documents:
+        return {"error": "No document uploaded yet."}
+
+    document = uploaded_documents["latest"]
+    result = await cpa_agent.process(query=query, document=document)
     return {"query": query, "result": result}
 
 

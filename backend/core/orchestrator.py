@@ -8,8 +8,8 @@ from backend.core.agents.content_processor_agent import ContentProcessorAgent
 # Initialize modules
 document_loader = LoadDocuments()
 chunk_store_node = ChunkAndStoreNode()
-# qa_node = QANode()
-# summarization_node = SummarizationNode()
+qa_node = QANode()
+summarization_node = SummarizationNode()
 cpa = ContentProcessorAgent()
 # ---------------------- DOCUMENT HANDLING ----------------------
 def load_document(file_path: str):
@@ -27,13 +27,13 @@ async def route_query(query: str) -> Dict[str, Any]:
     decision = await router_node(query)
     return decision
 
-# async def run_qa(query: str, document):
-#     """Run the QA module only."""
-#     return await qa_node.process(query=query, documents=[document])
+async def run_qa(query: str, document):
+    """Run the QA module only."""
+    return await qa_node.process(query=query, documents=[document])
 
-# async def run_summarization(query: str, document):
-#     """Run the Summarization module only."""
-#     return await summarization_node.process(query=query, documents=[document])
+async def run_summarization(query: str, document):
+    """Run the Summarization module only."""
+    return await summarization_node.process(query=query, documents=[document])
 
 # ---------------------- Agents ----------------------
 async def cpa_agent(query: str, document):
@@ -43,27 +43,27 @@ async def cpa_agent(query: str, document):
 
 
 # ---------------------- ORCHESTRATOR ----------------------
-async def orchestrate() -> Dict[str, Any]:
-    doc= load_document("/Users/maryamsaad/Documents/grad_data/ground_truth_files/fast_test_clean.json")
-    await store_document(doc)
-    query = "شخصيات"
-    result= await cpa_agent(query, doc)
-    print("CPA Result:", result)
-    query="ما الأسباب التي تدفع الطفل إلى الكذب حسب ما ورد في النص"
-    result= await cpa_agent(query, doc)
-    print("CPA Result:", result)
-    query="ما هي العوامل التي تؤثر على سلوك الطفل؟"
-    result= await cpa_agent(query, doc)
-    print("CPA Result:", result)
-    query="ما المراحل التسع للّحْرَم التي ذكرها النص، وما خصائص كل مرحلة؟"
-    result= await cpa_agent(query, doc)
-    print("CPA Result:", result)
+# async def orchestrate() -> Dict[str, Any]:
+#     doc= load_document("/Users/maryamsaad/Documents/grad_data/ground_truth_files/fast_test_clean.json")
+#     await store_document(doc)
+#     query = "شخصيات"
+#     result= await cpa_agent(query, doc)
+#     print("CPA Result:", result)
+#     query="ما الأسباب التي تدفع الطفل إلى الكذب حسب ما ورد في النص"
+#     result= await cpa_agent(query, doc)
+#     print("CPA Result:", result)
+#     query="ما هي العوامل التي تؤثر على سلوك الطفل؟"
+#     result= await cpa_agent(query, doc)
+#     print("CPA Result:", result)
+#     query="ما المراحل التسع للّحْرَم التي ذكرها النص، وما خصائص كل مرحلة؟"
+#     result= await cpa_agent(query, doc)
+#     print("CPA Result:", result)
 
     # qa=await run_qa(query, doc)
     # summary=await run_summarization(query, doc)
     # print("QA Result:", qa)
     # print("Summary Result:", summary)
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(orchestrate())
+# if __name__ == "__main__":
+#     import asyncio
+#     asyncio.run(orchestrate())
