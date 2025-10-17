@@ -218,3 +218,4 @@ logs
 .vscode
 .kiro
 .DS_Store
+.dockerignore
