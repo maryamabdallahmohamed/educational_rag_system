@@ -64,7 +64,8 @@ class ContentProcessorAgent:
             tools=self.tools,
             verbose=True,
             max_iterations=3,
-            handle_parsing_errors=True
+            handle_parsing_errors=True,
+            max_execution_time=500
         )
 
     async def process(self, query, document) :
