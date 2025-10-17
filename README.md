@@ -80,21 +80,9 @@ A sophisticated AI-powered content processing system built with LangGraph that p
 5. **Required Environment Variables**
    ```env
    # Groq API Configuration
-   grok_api=your_groq_api_key_here
-   
-   # Database Configuration
-   user=your_db_user
-   password=your_db_password
-   host=your_db_host
-   port=your_db_port
-   dbname=your_db_name
-   
-   # Optional: Supabase Configuration
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_key
-   
-   # Optional: LangSmith for tracing
-   LANGSMITH_API_KEY=your_langsmith_key
+   grok_api=your_groq_api_key_here   
+   DATABASE_URL=DB_URL
+
    ```
 
 ## 🚀 Usage
@@ -120,39 +108,231 @@ uvicorn backend.api.main:app --reload
 
 Available endpoints:
 
-- `GET /health` – basic health check.
-- `POST /api/summaries` – generate summaries from one or more documents:
-   ```json
-   {
-      "query": "Summarize the content",
-      "documents": [
-         {"content": "Raw text", "metadata": {"language": "en"}}
-      ]
-   }
+- `GET /health` – basic health check
+- `POST /api/upload` – upload and store a document:
+   ```bash
+   # Using curl with multipart/form-data
+   curl -X POST http://localhost:8000/api/upload \
+     -F "file=@document.pdf"
    ```
-- `POST /api/qa` – generate question-answer pairs from documents:
-   ```json
-   {
-      "query": "Create study questions",
-      "question_count": 3,
-      "documents": [
-         {"content": "Raw text", "metadata": {"language": "en"}}
-      ]
-   }
-   ```
-- `POST /api/pipeline/ingest` – end-to-end flow from loading to storage to routing:
-   ```json
-   {
-      "query": "What should happen next?",
-      "document_paths": ["/abs/path/to/local.json"],
-      "documents": [
-         {"content": "Inline text", "metadata": {"title": "Manual entry"}}
-      ]
-   }
-   ```
-   This loads any provided file paths via the existing loader, stores chunks and embeddings, and finally returns the router decision.
+   Response: `{"status": "uploaded", "filename": "document.pdf"}`
 
-The service is intentionally modular: new routers or routes can be placed under `backend/api/routes/` and registered within `backend/api/main.py` as additional features are added.
+- `POST /api/router` – route a query to determine the operation type:
+   ```bash
+   curl -X POST http://localhost:8000/api/router \
+     -F "query=What is in this document?"
+   ```
+   Response: `{"decision": "qa"}` or `{"decision": "summarize"}`
+
+- `POST /api/qa` – answer questions using the latest uploaded document:
+   ```bash
+   curl -X POST http://localhost:8000/api/qa \
+     -F "query=What are the main points?"
+   ```
+   Response: `{"query": "What are the main points?", "result": "...answer..."}`
+
+- `POST /api/summarize` – summarize the latest uploaded document:
+   ```bash
+   curl -X POST http://localhost:8000/api/summarize \
+     -F "query=Summarize this document"
+   ```
+   Response: `{"query": "Summarize this document", "result": "...summary..."}`
+
+- `POST /api/cpa_agent` – run the Content Processor Agent on the latest uploaded document:
+   ```bash
+   curl -X POST http://localhost:8000/api/cpa_agent \
+     -F "query=Analyze and process this content"
+   ```
+   Response: `{"query": "Analyze and process this content", "result": "...analysis..."}`
+
+**Note**: The service uses an in-memory document store. Upload a document first using `/api/upload`, then use the other endpoints to process it.
+
+### 🐳 Docker Deployment
+
+#### Prerequisites
+
+- Docker installed on your system
+- Docker Desktop or Docker Engine running
+
+#### Building the Docker Image
+
+```bash
+# Build the image
+docker build -t educational-rag-backend:latest .
+
+# Build with specific tag (recommended for versioning)
+docker build -t educational-rag-backend:v1.0 .
+```
+
+#### Running the Container
+
+**Option 1: Using environment file (Recommended)**
+```bash
+docker run -p 8000:8000 \
+  --env-file .env \
+  educational-rag-backend:latest
+```
+
+**Option 2: Using individual environment variables**
+```bash
+docker run -p 8000:8000 \
+  -e grok_api=your_groq_api_key \
+  -e DATABASE_URL=postgresql://user:password@host:port/dbname \
+  -e LANGSMITH_API_KEY=your_langsmith_key \
+  -e API_HOST=0.0.0.0 \
+  -e API_PORT=8000 \
+  educational-rag-backend:latest
+```
+
+**Option 3: Running in detached mode (Background)**
+```bash
+docker run -d \
+  -p 8000:8000 \
+  --name rag-backend \
+  --env-file .env \
+  educational-rag-backend:latest
+
+# View logs
+docker logs -f rag-backend
+
+# Stop container
+docker stop rag-backend
+```
+
+#### Docker Compose (Production Recommended)
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    image: educational-rag-backend:latest
+    container_name: educational-rag-backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  cache:
+  logs:
+```
+
+Then run:
+```bash
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Stop services
+docker-compose down
+```
+
+#### Docker Environment Variables
+
+The following environment variables should be set in your `.env` file:
+
+```env
+# Groq API Configuration
+grok_api=your_groq_api_key_here
+
+# Database Configuration
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# LangSmith Configuration (optional)
+LANGSMITH_API_KEY=your_langsmith_key_here
+
+# API Server Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+API_RELOAD=false
+
+# Application Configuration
+DEVICE=cpu
+CACHE_DIR=/app/cache
+GLOBAL_K=5
+```
+
+#### Accessing the Application
+
+Once running, the API will be available at:
+- **API Base URL**: `http://localhost:8000`
+- **Health Check**: `http://localhost:8000/health`
+- **API Documentation**: `http://localhost:8000/docs` (Swagger UI)
+- **Alternative Documentation**: `http://localhost:8000/redoc` (ReDoc)
+
+#### GPU Support (Optional)
+
+If you have an NVIDIA GPU and want to use it:
+
+```bash
+# Install NVIDIA Container Runtime
+# For Docker Desktop, enable GPU support in preferences
+
+# Run with GPU support
+docker run --gpus all \
+  -p 8000:8000 \
+  --env-file .env \
+  -e DEVICE=cuda \
+  educational-rag-backend:latest
+```
+
+#### Docker Image Optimization
+
+The Dockerfile uses multi-stage builds to optimize image size:
+- **Builder stage**: Installs build dependencies and compiles packages
+- **Runtime stage**: Contains only runtime dependencies
+
+Final image size is significantly reduced by excluding build tools.
+
+#### Troubleshooting Docker
+
+**Issue: Container exits immediately**
+```bash
+# Check logs
+docker logs container_name
+
+# Run with interactive terminal
+docker run -it --env-file .env educational-rag-backend:latest
+```
+
+**Issue: Port already in use**
+```bash
+# Use a different port
+docker run -p 8001:8000 --env-file .env educational-rag-backend:latest
+```
+
+**Issue: Environment variables not loaded**
+```bash
+# Verify .env file exists
+ls -la .env
+
+# Check environment variables in container
+docker run -it --env-file .env educational-rag-backend:latest env | grep -E "(grok_api|DATABASE_URL)"
+```
+
+**Issue: Database connection refused**
+```bash
+# Ensure database is accessible
+# For local postgres: use host.docker.internal instead of localhost
+DATABASE_URL=postgresql://user:password@host.docker.internal:5432/dbname
+```
 
 ### Core Components
 
