@@ -50,7 +50,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         self.logger.debug("Received query: %s", query)
         
         # Load documents and prepare context
-        language = documents.metadata['language']
+        language = documents[0].metadata['language']
         context = documents
         self.logger.debug("Loaded %d documents", len(documents))
         self.logger.debug("Detected language: %s", language)
