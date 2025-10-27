@@ -4,7 +4,7 @@
 # Build: docker build -t educational-rag-backend:latest .
 # Run:   docker run -p 8000:8000 --env-file .env educational-rag-backend:latest
 # Or:    docker run -p 8000:8000 -e grok_api=YOUR_KEY -e DATABASE_URL=YOUR_DB educational-rag-backend:latest
-FROM python:3.13-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app
@@ -31,8 +31,7 @@ RUN pip install --upgrade pip setuptools wheel && \
 # ===============================
 # Stage 2: Runtime
 # ===============================
-FROM python:3.13-slim
-
+FROM python:3.11-slim
 WORKDIR /app
 
 # Install runtime dependencies (lightweight)
