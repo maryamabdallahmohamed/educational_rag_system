@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from torch import device
 from tqdm import tqdm
 from surya.foundation import FoundationPredictor
 from surya.recognition import RecognitionPredictor
