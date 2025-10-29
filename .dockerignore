@@ -1,18 +1,3 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.log
-*.db
-*.sqlite3
-.env
-.vscode/
-.git/
-.cache/
-__pycache__/
-tests/
-notebooks/
-data/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -233,3 +218,6 @@ logs
 .vscode
 .kiro
 .DS_Store
+.dockerignore
+backend/core/ocr_module./Qari_model_cache
+backend/core/ocr_module./Qwen_processor_cache
