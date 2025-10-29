@@ -88,7 +88,7 @@ def ocr_pdf(pdf_path,dpi=300):
         pil_textboxes=[Image.fromarray(box) for box in textboxes]
         ocr_results = extract_text_from_images(pil_textboxes, model, processor, eos_id, pad_id)
         all_ocr_results[page_idx] = ocr_results
-    print(all_ocr_results)
+    logger.debug(all_ocr_results)
     texts = postprocess_ocr_results(all_ocr_results)
     metadata = {
         "file_name": os.path.basename(pdf_path),
