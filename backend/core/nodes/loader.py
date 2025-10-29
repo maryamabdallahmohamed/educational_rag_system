@@ -5,7 +5,6 @@ from backend.core.ocr_module.ocr_orchestrator import upload_document
 from backend.utils.helpers.language_detection import returnlang
 from backend.utils.logger_config import get_logger
 from backend.core.builders.document_builder import DocumentBuilder
-import os
 
 logger = get_logger("pdf_loader")
 
