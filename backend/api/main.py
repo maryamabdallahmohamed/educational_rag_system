@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from typing import Dict, Any
 import asyncio
 from backend.core.agents.content_processor_agent import ContentProcessorAgent
-from backend.core.nodes.loader import LoadDocuments
+from backend.core.nodes.loader import PDFLoader
 from backend.core.nodes.chunk_store import ChunkAndStoreNode
 from backend.core.nodes.qa_node import QANode
 from backend.core.nodes.summarizer import SummarizationNode
@@ -11,7 +11,7 @@ from backend.core.nodes.router import router_node
 app = FastAPI(title="Educational RAG API", version="1.0")
 
 # Node initialization
-document_loader = LoadDocuments()
+document_loader = PDFLoader()
 chunk_store_node = ChunkAndStoreNode()
 qa_node = QANode()
 summarization_node = SummarizationNode()
@@ -29,14 +29,18 @@ async def upload_file(file: UploadFile = File(...)):
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
+    # Build a LangChain Document instead of raw text
     document = document_loader.load_document(file_path)
-    await chunk_store_node.process([document])
+    if document is None:
+        return {"error": "Failed to load document."}
+
+    await chunk_store_node.process([document], metadata=document.metadata)
 
     # Save document in memory for later use
     uploaded_documents["latest"] = document
+    uploaded_documents["latest_metadata"] = document.metadata
 
     return {"status": "uploaded", "filename": file.filename}
-
 
 # ---------------------------------------------------------------------------- #
 # Router Endpoint

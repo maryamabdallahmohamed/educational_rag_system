@@ -24,10 +24,12 @@ class ChunkAndStoreNode:
 
     async def _insert_document(self, session, doc: Document):
         doc_repo = DocumentRepository(session)
+        metadata = doc.metadata or {}
+
         doc_dto = await doc_repo.add(
-            title=(doc.metadata or {}).get("title", "Untitled"),
+            title=doc.metadata.get("file_name"),
             content=doc.page_content,
-            doc_metadata=doc.metadata or {},
+            doc_metadata=metadata,
         )
         logger.debug("Inserted document DTO", extra={"doc_id": getattr(doc_dto, 'id', None)})
         return doc_dto
@@ -43,7 +45,7 @@ class ChunkAndStoreNode:
         logger.debug("Inserted chunk DTO", extra={"chunk_id": getattr(chunk_dto, 'id', None), "document_id": doc_id})
         return chunk_dto
 
-    async def process(self, documents: List[Document]) -> List[Document]:
+    async def process(self, documents: List[Document],metadata) -> List[Document]:
         """Chunks, embeds, and stores documents in DB."""
         if not documents:
             logger.warning("No new documents found in state.")
@@ -56,7 +58,7 @@ class ChunkAndStoreNode:
         try:
             async with NeonDatabase.get_session() as session:
                 for doc_idx, doc in enumerate(documents):
-                    logger.debug("Processing document", extra={"index": doc_idx, "source": (doc.metadata or {}).get('source')})
+                    logger.debug("Processing document", extra={"index": doc_idx, "source": (metadata['file_name'])})
 
                     # 1️⃣ Insert document
                     doc_dto = await self._insert_document(session, doc)
@@ -79,7 +81,7 @@ class ChunkAndStoreNode:
                             self.builder
                             .set_content(chunk)
                             .set_metadata({
-                                **(doc.metadata or {}),
+                                **(metadata or {}),
                                 "chunk_id": i,
                                 "language": language,
                                 "parent_id": doc_dto.id,
