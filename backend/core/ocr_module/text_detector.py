@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 from surya.foundation import FoundationPredictor
-from surya.recognition import RecognitionPredictor
 from surya.detection import DetectionPredictor
 from backend.config import DEVICE
 
