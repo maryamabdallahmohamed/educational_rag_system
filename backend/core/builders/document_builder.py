@@ -20,8 +20,4 @@ class DocumentBuilder:
     def build(self) -> Document:
         if not self._content:
             raise ValueError("Document content must be set before building.")
-
-        return Document(
-            page_content=self._content,
-            metadata=self._metadata
-        )
+        return Document(page_content=self._content, metadata=self._metadata)

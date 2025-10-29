@@ -60,7 +60,7 @@ def upload_document(pdf_path):
             "num_pages": len(reader.pages),
             "method": "pdf_extract",
             "processing_time": round(time.time() - start, 2),
-            "text_length": len(text),
+            "text_length": sum(len(t) for t in texts.values()),
             "gibberish_detected": gibberish,
             "arabic_ratio": round(arabic_ratio, 3),
         }
@@ -97,14 +97,10 @@ def ocr_pdf(pdf_path,dpi=300):
         "processing_time": round(time.time() - start, 2),
         "dpi": dpi,
         "pages_processed": sorted(all_ocr_results.keys()),
-        "text_length": sum(len(t) for t in texts)}
+        "text_length": sum(len(t) for t in texts.values()),}
     logger.info(f" OCR completed in {metadata['processing_time']}s for {metadata['num_pages']} pages.")
 
     return texts, metadata
 
 
 
-
-text, metadata = upload_document("/Users/maryamsaad/Documents/grad_data/quick1pagetest.pdf")
-print(metadata)
-print(text)
