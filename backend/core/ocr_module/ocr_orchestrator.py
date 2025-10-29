@@ -79,7 +79,7 @@ def ocr_pdf(pdf_path,dpi=300):
                 pdf_path = os.path.join(pdf_path, pdf_file)
                 images.extend(convert_from_path(pdf_path, dpi=dpi))
     
-    detected_texts=preprocess_detected_texts(images)
+    detected_texts = preprocess_detected_texts(images)
     start = time.time()
     model, processor, eos_id, pad_id = load_ocr_model()
     all_ocr_results = {}
