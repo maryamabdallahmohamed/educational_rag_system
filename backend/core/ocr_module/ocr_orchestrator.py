@@ -69,7 +69,7 @@ def upload_document(pdf_path):
 
 
 
-def ocr_pdf(pdf_path,dpi=300):
+def ocr_pdf(pdf_path, dpi=300):
     images = []
     if os.path.isfile(pdf_path):
         images.extend(convert_from_path(pdf_path, dpi=dpi))
