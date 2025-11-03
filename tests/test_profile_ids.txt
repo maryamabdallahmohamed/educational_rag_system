@@ -1,0 +1,44 @@
+# Test Learner Profile IDs for TutorAgent Testing
+# Generated: 2025-10-17T22:19:05.929028
+# NOTE: These are mock profiles for testing TutorAgent personalization
+
+# Emma Visual - Visual Learner
+emma_visual_id = "9ba176ba-f456-4da2-aa59-362334493e4a"
+# Grade 10, 87% accuracy
+# High-performing visual learner who excels with diagrams and charts
+
+# Marcus Struggling - Kinesthetic Learner
+marcus_struggling_id = "baed10f1-1c62-40b9-958d-5d4d17a26dde"
+# Grade 8, 42% accuracy
+# Struggling learner who needs encouragement and hands-on examples
+
+# Sophia Advanced - Analytical Learner
+sophia_advanced_id = "7df0c488-d8c3-4b5e-bdbf-f619130ac5ce"
+# Grade 12, 94% accuracy
+# Advanced analytical learner who seeks theoretical depth
+
+# James Auditory - Auditory Learner
+james_auditory_id = "8c3f8fea-6f33-49c9-9b77-bbfc98803d91"
+# Grade 9, 73% accuracy
+# Auditory learner who prefers verbal explanations and discussions
+
+# Maria ESL - Visual Learner
+maria_esl_id = "51caffb0-f7c1-47d0-bc5c-21ff691bae35"
+# Grade 7, 58% accuracy
+# Spanish-speaking visual learner who needs bilingual support
+
+# Alex ADHD - Kinesthetic Learner
+alex_adhd_id = "13a7e016-5ed0-445a-9af2-43c2ede9b493"
+# Grade 6, 67% accuracy
+# Kinesthetic learner with ADHD who needs short, engaging sessions
+
+# Luna Creative - Creative Learner
+luna_creative_id = "781e6903-b484-4a94-9ff5-989135c95153"
+# Grade 11, 91% accuracy
+# Creative gifted learner who enjoys open-ended problems
+
+# David Comeback - Methodical Learner
+david_comeback_id = "f81494c9-4997-4c84-b2bc-cd996e56a56e"
+# Grade 10, 51% accuracy
+# Returning student with knowledge gaps who needs confidence building
+

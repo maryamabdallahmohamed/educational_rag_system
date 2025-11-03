@@ -57,7 +57,7 @@ class QAResponse(BaseModel):
     total_questions: int = Field(description="Total number of questions generated")
 
 class RouterOutput(BaseModel):
-    route: str = Field(description="The routing decision: qa, summarization, content_processor_agent, or tutor_agent")
+    route: str = Field(description="The routing decision: qa, summarization, or content_processor_agent")
     confidence: float = Field(description="Confidence score between 0 and 1")
     reasoning: str = Field(description="Brief explanation for the routing decision")
 

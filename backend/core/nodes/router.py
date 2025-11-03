@@ -32,8 +32,7 @@ def _get_route_description(route: str) -> str:
     descriptions = {
         "qa": "Simple factual questions or Q&A generation from documents",
         "summarization": "Content summaries and overviews", 
-        "content_processor_agent": "Document processing, learning units creation, and general conversation",
-        "tutor_agent": "Personalized tutoring, adaptive learning, educational explanations, practice, and assessment"
+        "content_processor_agent": "Document processing, learning units creation, general conversation, and tutoring coordination (delegates to TutorAgent when needed)"
     }
     return descriptions.get(route, "Unknown route")
 

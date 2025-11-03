@@ -107,12 +107,27 @@ class ExplanationEngineHandler(BaseHandler):
     def _parse_explanation_request(self, request: str) -> Optional[Dict[str, Any]]:
         """Parse explanation request string into structured data"""
         try:
-            # Try to parse as JSON first
-            if request.strip().startswith('{'):
-                return json.loads(request)
+            # Handle different input types
+            if isinstance(request, dict):
+                # Direct dict input
+                return request
+            elif isinstance(request, str):
+                # Try to parse as JSON first
+                if request.strip().startswith('{'):
+                    try:
+                        return json.loads(request)
+                    except json.JSONDecodeError:
+                        # If JSON parsing fails, try to handle malformed JSON strings
+                        # Look for dict-like string representation: {"key": "value"}
+                        import ast
+                        try:
+                            return ast.literal_eval(request)
+                        except (ValueError, SyntaxError):
+                            pass
             
             # Parse natural language request
-            request_lower = request.lower()
+            request_str = str(request)  # Ensure it's a string
+            request_lower = request_str.lower()
             parsed_request = {
                 "topic": "",
                 "explanation_style": None,
@@ -137,9 +152,9 @@ class ExplanationEngineHandler(BaseHandler):
                     break
             
             # If no pattern matched, use the entire request as topic
-            if not topic_found and request.strip():
+            if not topic_found and request_str.strip():
                 # Remove common instruction words and use the rest
-                topic = re.sub(r'^(explain|describe|what is|how does?|tell me about)\s+', '', request, flags=re.IGNORECASE)
+                topic = re.sub(r'^(explain|describe|what is|how does?|tell me about)\s+', '', request_str, flags=re.IGNORECASE)
                 parsed_request["topic"] = topic.strip()
             
             # Extract style if mentioned

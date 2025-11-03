@@ -23,8 +23,16 @@ A sophisticated AI-powered content processing system built with LangGraph that p
 │   │   │   │   ├── document_analysis_handler.py
 │   │   │   │   ├── explainable_units_handler.py
 │   │   │   │   └── rag_chat_handler.py
+│   │   │   ├── tutor_handlers/ # Tutor agent handlers (integrated with CPA)
+│   │   │   │   ├── session_manager.py
+│   │   │   │   ├── learner_model_manager.py
+│   │   │   │   ├── interaction_logger.py
+│   │   │   │   ├── cpa_bridge.py
+│   │   │   │   ├── explanation_engine.py
+│   │   │   │   └── practice_generator.py
 │   │   │   ├── base_handler.py
-│   │   │   └── content_processor_agent.py
+│   │   │   ├── content_processor_agent.py # Main agent with integrated tutoring
+│   │   │   └── tutor_agent.py          # Sub-agent for personalized learning
 │   │   ├── nodes/            # LangGraph workflow nodes
 │   │   ├── states/           # State management
 │   │   ├── utils/            # Core utilities
@@ -114,8 +122,8 @@ The application will be available at the configured endpoint.
 
 ### Core Components
 
-#### 1. Content Processor Agent
-The main orchestrator that routes requests to appropriate handlers:
+#### 1. Content Processor Agent (Main Orchestrator)
+The main agent that handles all requests and intelligently delegates to appropriate handlers:
 
 ```python
 from backend.core.agents.content_processor_agent import ContentProcessorAgent
@@ -124,7 +132,35 @@ agent = ContentProcessorAgent()
 result = await agent.process(state)
 ```
 
-#### 2. Document Analysis Handler
+**Key Features:**
+- **Intelligent Routing**: Automatically detects tutoring requests and delegates to integrated TutorAgent
+- **Document Processing**: Handles file uploads, analysis, and structured content creation
+- **RAG Operations**: Manages document-based question answering and conversations
+- **General Chat**: Provides conversational AI capabilities
+
+#### 2. Integrated Tutor Agent (Sub-Agent)
+The TutorAgent now works as a specialized sub-agent within the ContentProcessorAgent:
+
+```python
+# TutorAgent is automatically invoked for educational queries like:
+# "Explain photosynthesis", "Help me with algebra", "I need practice problems"
+```
+
+**Tutoring Capabilities:**
+- **Personalized Learning**: Adapts to individual learner profiles and styles
+- **Session Management**: Maintains learning context across interactions
+- **Practice Generation**: Creates customized exercises and assessments
+- **Progress Tracking**: Monitors learning outcomes and adjusts difficulty
+- **Multi-Modal Support**: Provides visual, auditory, and kinesthetic learning approaches
+
+#### 3. Router Intelligence
+The system intelligently routes requests through a 3-tier architecture:
+
+1. **Router Node**: Classifies requests into `qa`, `summarization`, or `content_processor_agent`
+2. **Content Processor Agent**: Further analyzes requests and delegates tutoring queries to TutorAgent
+3. **Specialized Processing**: Handles the request with the most appropriate agent/handler
+
+#### 4. Document Analysis Handler
 Analyzes uploaded documents and extracts metadata:
 
 - Supports multiple document formats

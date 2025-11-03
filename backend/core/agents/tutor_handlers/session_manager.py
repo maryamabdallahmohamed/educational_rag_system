@@ -48,6 +48,13 @@ class SessionManagerHandler(BaseHandler):
             if not learner_id:
                 return "No learner ID provided in state. Cannot manage session."
 
+            # Check if this is a guest session
+            is_guest_session = self.current_state.get("guest_session", False) or learner_id.startswith("guest_")
+            
+            if is_guest_session:
+                self.logger.info("Guest session detected - providing simplified session management")
+                return self._handle_guest_session(action, learner_id)
+
             result = ""
             
             if action == "start":
@@ -274,3 +281,34 @@ class SessionManagerHandler(BaseHandler):
             summary["interaction_types"] = list(set(i.get("type", "unknown") for i in interactions))
             
         return summary
+
+    def _handle_guest_session(self, action: str, learner_id: str) -> str:
+        """Handle session management for guest users without database operations"""
+        
+        if action == "start":
+            # Guest session is already initialized in TutorAgent
+            profile = self.current_state.get("learner_profile", {})
+            session_id = self.current_state.get("tutoring_session_id", f"guest_session_{learner_id}")
+            
+            return f"Welcome to your tutoring session! I've created a personalized learning profile based on your query. " \
+                   f"Grade level: {profile.get('grade_level', 'middle school')}, " \
+                   f"Learning style: {profile.get('learning_style', 'mixed')}, " \
+                   f"Difficulty: {profile.get('difficulty_preference', 'medium')}. " \
+                   f"Let's start learning together!"
+                   
+        elif action == "continue":
+            return "Your guest session is active. What would you like to learn about next?"
+            
+        elif action == "end":
+            return "Thank you for using our tutoring service! Your guest session has ended. " \
+                   "Feel free to ask me any questions anytime."
+                   
+        elif action == "load_context":
+            profile = self.current_state.get("learner_profile", {})
+            return f"Guest learner profile: Grade {profile.get('grade_level', 'unknown')}, " \
+                   f"Learning style: {profile.get('learning_style', 'mixed')}, " \
+                   f"Language: {profile.get('preferred_language', 'English')}"
+                   
+        else:
+            return f"Guest session active. I can help you learn regardless of the session state. " \
+                   f"What would you like to explore?"

@@ -1,4 +1,6 @@
 from typing import List
+import time
+import re
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
@@ -107,8 +109,18 @@ class TutorAgent:
             return state
 
         # Extract metadata for tracing
-        learner_id = state.get("learner_id", "default_learner")
+        learner_id = state.get("learner_id")
         learner_profile = state.get("learner_profile", {})
+        
+        # Handle guest session (no learner_id provided)
+        if not learner_id:
+            logger.info("No learner_id provided - creating guest session")
+            learner_id = f"guest_{int(time.time())}"
+            learner_profile = self._create_guest_profile(query)
+            state["learner_id"] = learner_id
+            state["learner_profile"] = learner_profile
+            state["guest_session"] = True
+            logger.info(f"Created guest session: {learner_id} with inferred profile: {learner_profile}")
         
         # Add metadata to trace if LangSmith is enabled
         if LANGSMITH_AVAILABLE and is_langsmith_enabled():
@@ -121,6 +133,7 @@ class TutorAgent:
                         "query_length": len(query),
                         "has_learner_profile": bool(learner_profile),
                         "learner_id": learner_id,
+                        "is_guest_session": state.get("guest_session", False),
                     })
                     run_tree.update(metadata=metadata)
                     logger.debug(f"Added metadata to trace: {metadata}")
@@ -133,13 +146,36 @@ class TutorAgent:
             # Set current state for all handlers
             self._set_handler_states(state)
 
-            # Ensure we have an active tutoring session
-            session_id = await self._ensure_session_active(learner_id)
-            state["tutoring_session_id"] = session_id
+            # For guest sessions, skip database session management
+            if state.get("guest_session", False):
+                logger.info("Guest session - skipping database session management")
+                session_id = f"guest_session_{learner_id}"
+                state["tutoring_session_id"] = session_id
+            else:
+                # Ensure we have an active tutoring session for registered users
+                try:
+                    session_id = await self._ensure_session_active(learner_id)
+                    state["tutoring_session_id"] = session_id
+                except Exception as e:
+                    logger.error(f"Error ensuring active session: {e}")
+                    # Fallback to creating a basic session ID
+                    session_id = f"session_{learner_id}_{int(time.time())}"
+                    state["tutoring_session_id"] = session_id
 
             # Detect language for response
-            documents = state.get('documents', [])
-            detected_language = returnlang(documents) if documents else "English"
+            # For guest sessions, use the inferred language from profile
+            if state.get("guest_session", False):
+                detected_language = learner_profile.get("preferred_language", "English")
+            else:
+                # For registered users, try to detect from documents or query
+                documents = state.get('documents', [])
+                if documents and isinstance(documents, list) and len(documents) > 0:
+                    # Extract text from documents for language detection
+                    doc_text = " ".join([str(doc) for doc in documents[:3]])  # Use first 3 docs
+                    detected_language = returnlang(doc_text) if doc_text.strip() else "English"
+                else:
+                    # Fallback to query language detection
+                    detected_language = returnlang(query) if query.strip() else "English"
             logger.info(f"Detected language: {detected_language}")
 
             # Create personalized tutoring prompt
@@ -215,7 +251,7 @@ class TutorAgent:
 
             if session_handler:
                 # Try to continue existing session or start new one
-                result = await session_handler.tool().afunc("continue")
+                result = await session_handler._process("continue")
                 logger.info(f"Session management result: {result}")
                 
                 # Extract session ID from current state after session management
@@ -233,6 +269,9 @@ class TutorAgent:
         # Language instruction
         language_instruction = "Please respond in Arabic." if language == "Arabic" else "Please respond in English."
         
+        # Check if this is a guest session
+        is_guest = learner_profile.get("guest_session_info", {}).get("created_from_query", False)
+        
         # Build learner context
         learner_context = ""
         if learner_profile:
@@ -243,19 +282,35 @@ class TutorAgent:
             mastered_topics = learner_profile.get("mastered_topics", [])
             learning_struggles = learner_profile.get("learning_struggles", [])
             
-            learner_context = f"""
-Learner Profile:
+            if is_guest:
+                learner_context = f"""
+Guest Learner Profile (Inferred from Query):
+- Estimated Grade Level: {grade_level}
+- Detected Learning Style: {learning_style}
+- Inferred Difficulty Preference: {difficulty_pref}
+- This is a new learner with no previous session history
+- Profile was created by analyzing the query language and context
+
+Since this is a guest session:
+1. Be welcoming and establish rapport
+2. Ask clarifying questions if needed to better understand their level
+3. Provide excellent first impression of personalized tutoring
+4. Adapt based on their responses and engagement
+"""
+            else:
+                learner_context = f"""
+Registered Learner Profile:
 - Grade Level: {grade_level}
 - Learning Style: {learning_style}
 - Difficulty Preference: {difficulty_pref}
 - Current Accuracy Rate: {accuracy_rate:.2f}
-- Mastered Topics: {', '.join(mastered_topics) if mastered_topics else 'None recorded'}
-- Learning Struggles: {', '.join(learning_struggles) if learning_struggles else 'None identified'}
+- Mastered Topics: {', '.join([topic.get('topic', str(topic)) for topic in mastered_topics]) if mastered_topics else 'None recorded'}
+- Learning Struggles: {', '.join([struggle.get('topic', str(struggle)) for struggle in learning_struggles]) if learning_struggles else 'None identified'}
 
-Adapt your response to match this learner's level and preferences.
+Adapt your response to match this learner's established level and preferences.
 """
 
-        # Available capabilities context
+        # Available capabilities context  
         capabilities_context = """
 Available Tutoring Capabilities:
 
@@ -284,6 +339,25 @@ CONTENT ADAPTATION:
 Use these capabilities to provide the most effective learning experience for this specific learner.
 """
 
+        # Session management instructions
+        session_instructions = ""
+        if is_guest:
+            session_instructions = """
+GUEST SESSION MANAGEMENT:
+- This is a guest learner with no database profile
+- Session management tools may not work as expected
+- Focus on direct tutoring and explanation rather than complex session tracking
+- Provide immediate value and educational support
+- Be prepared to work without detailed learner history
+"""
+        else:
+            session_instructions = """
+SESSION MANAGEMENT:
+1. Ensure session is active and manage learner context using "manage_tutoring_session"
+2. Update learner model based on performance indicators using "update_learner_model"
+3. Log this interaction for learning analytics using "log_interaction"
+"""
+
         # Combine all elements
         enhanced_query = f"""{language_instruction}
 
@@ -291,15 +365,15 @@ Use these capabilities to provide the most effective learning experience for thi
 
 {capabilities_context}
 
+{session_instructions}
+
 Learner Query: {query}
 
 Remember to:
-1. Ensure session is active and manage learner context using "manage_tutoring_session"
-2. Use "generate_explanation" for concepts that need clarification (choose appropriate style)
-3. Use "generate_practice" when learner needs reinforcement or assessment
-4. Use "request_content_adaptation" when content doesn't match learner's needs
-5. Update learner model based on performance indicators using "update_learner_model"
-6. Log this interaction for learning analytics using "log_interaction"
+1. Use "generate_explanation" for concepts that need clarification (choose appropriate style)
+2. Use "generate_practice" when learner needs reinforcement or assessment
+3. Use "request_content_adaptation" when content doesn't match learner's needs
+4. Provide immediate educational value regardless of session type
 
 Choose the most appropriate tools and approaches based on the learner's query and profile.
 """
@@ -361,3 +435,171 @@ Choose the most appropriate tools and approaches based on the learner's query an
             
         self._clear_handler_states()
         logger.info("Cleared tutoring session")
+
+    def _create_guest_profile(self, query: str) -> dict:
+        """Create a guest learner profile by inferring characteristics from the query"""
+        try:
+            query_lower = query.lower()
+            
+            # Infer grade level from query context
+            grade_level = 8  # Default middle school
+            
+            # Check for explicit grade mentions first
+            import re
+            grade_matches = re.findall(r'(\d+)\s*(?:st|nd|rd|th)?\s*grade', query_lower)
+            if grade_matches:
+                grade_level = int(grade_matches[0])
+            elif any(word in query_lower for word in ['kindergarten', 'preschool', 'abc', 'counting']):
+                grade_level = 1
+            elif any(word in query_lower for word in ['elementary', 'addition', 'subtraction']):
+                grade_level = 4
+            elif any(word in query_lower for word in ['middle school', 'algebra']) and 'fraction' not in query_lower:
+                grade_level = 8
+            elif any(word in query_lower for word in ['high school', 'ap', 'trigonometry', 'calculus', 'chemistry', 'physics']):
+                grade_level = 11
+            elif any(word in query_lower for word in ['college', 'university', 'theoretical', 'complex analysis']):
+                grade_level = 16
+            # Handle fractions separately - can be elementary or middle
+            elif 'fraction' in query_lower:
+                if any(word in query_lower for word in ['3rd', '4th', 'elementary', 'simple']):
+                    grade_level = 4
+                else:
+                    grade_level = 8
+            
+            # Infer learning style from query language
+            learning_style = "Mixed"
+            if any(word in query_lower for word in ['show me', 'diagram', 'picture', 'visual', 'see', 'draw', 'chart']):
+                learning_style = "Visual"
+            elif any(word in query_lower for word in ['explain', 'tell me', 'talk', 'listen', 'hear', 'discuss']):
+                learning_style = "Auditory"
+            elif any(word in query_lower for word in ['hands-on', 'practice', 'do', 'try', 'interactive', 'game']):
+                learning_style = "Kinesthetic"
+            elif any(word in query_lower for word in ['analyze', 'prove', 'theory', 'logic', 'detailed']):
+                learning_style = "Analytical"
+            elif any(word in query_lower for word in ['creative', 'imagine', 'design', 'artistic']):
+                learning_style = "Creative"
+            
+            # Infer difficulty preference
+            difficulty_preference = "medium"
+            if any(word in query_lower for word in ['simple', 'easy', 'basic', 'confused', 'confusing', 'don\'t understand', 'hard for me', 'help me', 'struggling']):
+                difficulty_preference = "easy"
+            elif any(word in query_lower for word in ['challenging', 'advanced', 'complex', 'difficult', 'in-depth', 'theoretical', 'rigorous']):
+                difficulty_preference = "challenging"
+            
+            # Infer language preference
+            preferred_language = "English"
+            if any(word in query for word in ['español', '¿', '¡', 'por favor', 'gracias']):
+                preferred_language = "Spanish"
+            elif any(word in query for word in ['العربية', 'عربي', 'أريد']):
+                preferred_language = "Arabic"
+            
+            # Create guest profile
+            guest_profile = {
+                "grade_level": grade_level,
+                "learning_style": learning_style,
+                "preferred_language": preferred_language,
+                "difficulty_preference": difficulty_preference,
+                "avg_response_time": 15.0,  # Default
+                "accuracy_rate": 0.7,      # Default moderate accuracy
+                "completion_rate": 0.8,     # Default good completion
+                "total_sessions": 0,        # New guest
+                "interaction_patterns": {
+                    "preferred_formats": self._get_format_preferences(learning_style),
+                    "session_type": "exploration",
+                    "guest_session": True
+                },
+                "learning_struggles": [],
+                "mastered_topics": [],
+                "preferred_explanation_styles": [
+                    {"style": learning_style.lower(), "effectiveness": 0.9},
+                    {"style": "encouraging", "effectiveness": 0.8}
+                ],
+                "guest_session_info": {
+                    "created_from_query": True,
+                    "inferred_characteristics": {
+                        "grade_level_indicators": self._extract_grade_indicators(query_lower),
+                        "learning_style_indicators": self._extract_style_indicators(query_lower),
+                        "difficulty_indicators": self._extract_difficulty_indicators(query_lower)
+                    }
+                }
+            }
+            
+            logger.info(f"Created guest profile: Grade {grade_level}, Style {learning_style}, Difficulty {difficulty_preference}")
+            return guest_profile
+            
+        except Exception as e:
+            logger.error(f"Error creating guest profile: {e}")
+            # Return minimal default profile
+            return {
+                "grade_level": 8,
+                "learning_style": "Mixed",
+                "preferred_language": "English",
+                "difficulty_preference": "medium",
+                "avg_response_time": 15.0,
+                "accuracy_rate": 0.7,
+                "completion_rate": 0.8,
+                "total_sessions": 0,
+                "interaction_patterns": {"guest_session": True},
+                "learning_struggles": [],
+                "mastered_topics": [],
+                "preferred_explanation_styles": [{"style": "encouraging", "effectiveness": 0.8}]
+            }
+    
+    def _get_format_preferences(self, learning_style: str) -> list:
+        """Get format preferences based on learning style"""
+        format_map = {
+            "Visual": ["diagrams", "charts", "step-by-step_visuals", "infographics"],
+            "Auditory": ["verbal_explanations", "discussions", "audio_content"],
+            "Kinesthetic": ["hands_on", "interactive", "practice_exercises"],
+            "Analytical": ["detailed_explanations", "logical_proofs", "systematic_approach"],
+            "Creative": ["open_ended", "artistic_connections", "real_world_applications"],
+            "Mixed": ["varied_approaches", "multi_modal", "adaptive_content"]
+        }
+        return format_map.get(learning_style, format_map["Mixed"])
+    
+    def _extract_grade_indicators(self, query: str) -> list:
+        """Extract words that indicate grade level"""
+        indicators = []
+        grade_words = {
+            'elementary': ['elementary', 'basic', 'simple', 'counting'],
+            'middle': ['middle', 'algebra', 'fraction', 'geometry'],
+            'high': ['high school', 'trigonometry', 'calculus', 'chemistry', 'physics'],
+            'college': ['college', 'university', 'advanced', 'complex', 'theoretical']
+        }
+        
+        for level, words in grade_words.items():
+            for word in words:
+                if word in query:
+                    indicators.append(f"{level}:{word}")
+        return indicators
+    
+    def _extract_style_indicators(self, query: str) -> list:
+        """Extract words that indicate learning style"""
+        indicators = []
+        style_words = {
+            'visual': ['show', 'see', 'diagram', 'picture', 'chart', 'visual', 'draw'],
+            'auditory': ['explain', 'tell', 'discuss', 'listen', 'hear'],
+            'kinesthetic': ['do', 'practice', 'hands-on', 'interactive', 'game'],
+            'analytical': ['analyze', 'prove', 'theory', 'logic', 'detailed'],
+            'creative': ['creative', 'imagine', 'design', 'artistic']
+        }
+        
+        for style, words in style_words.items():
+            for word in words:
+                if word in query:
+                    indicators.append(f"{style}:{word}")
+        return indicators
+    
+    def _extract_difficulty_indicators(self, query: str) -> list:
+        """Extract words that indicate difficulty preference"""
+        indicators = []
+        difficulty_words = {
+            'easy': ['simple', 'easy', 'basic', 'confused', 'confusing', "don't understand", 'help me', 'struggling'],
+            'hard': ['challenging', 'advanced', 'complex', 'difficult', 'in-depth', 'theoretical', 'rigorous']
+        }
+        
+        for level, words in difficulty_words.items():
+            for word in words:
+                if word in query:
+                    indicators.append(f"{level}:{word}")
+        return indicators

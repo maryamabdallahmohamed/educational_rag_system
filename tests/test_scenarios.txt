@@ -1,0 +1,67 @@
+# Test Scenarios for TutorAgent Personalization Testing
+# Generated: 2025-10-17T22:19:05.929654
+
+1. Emma Visual (Visual Learner)
+   Profile ID: 9ba176ba-f456-4da2-aa59-362334493e4a
+   Test Queries:
+     • "Can you show me how to solve quadratic equations with visual examples?"
+     • "I need a diagram to understand the Pythagorean theorem"
+     • "Can you draw me a graph of this function?"
+   Expected: Personalized response for visual learning style
+
+2. Marcus Struggling (Kinesthetic Learner)
+   Profile ID: baed10f1-1c62-40b9-958d-5d4d17a26dde
+   Test Queries:
+     • "I really don't understand fractions. They're so confusing!"
+     • "Math is really hard for me, where should I start?"
+     • "Can you make this problem easier to understand?"
+   Expected: Personalized response for kinesthetic learning style
+
+3. Sophia Advanced (Analytical Learner)
+   Profile ID: 7df0c488-d8c3-4b5e-bdbf-f619130ac5ce
+   Test Queries:
+     • "Can you explain the mathematical foundations of integration?"
+     • "I want challenging calculus problems to solve"
+     • "Show me the theoretical proof behind this theorem"
+   Expected: Personalized response for analytical learning style
+
+4. James Auditory (Auditory Learner)
+   Profile ID: 8c3f8fea-6f33-49c9-9b77-bbfc98803d91
+   Test Queries:
+     • "Can you explain this concept out loud to me?"
+     • "I learn better when you talk me through the steps"
+     • "Let's discuss how this formula works"
+   Expected: Personalized response for auditory learning style
+
+5. Maria ESL (Visual Learner)
+   Profile ID: 51caffb0-f7c1-47d0-bc5c-21ff691bae35
+   Test Queries:
+     • "¿Puedes explicarme las fracciones en español?"
+     • "I need help with math vocabulary in simple English"
+     • "Can you use easy words to explain this?"
+   Expected: Personalized response for visual learning style
+
+6. Alex ADHD (Kinesthetic Learner)
+   Profile ID: 13a7e016-5ed0-445a-9af2-43c2ede9b493
+   Test Queries:
+     • "I have trouble focusing, can you make this fun?"
+     • "Can we play a math game instead?"
+     • "I need short, simple explanations please"
+   Expected: Personalized response for kinesthetic learning style
+
+7. Luna Creative (Creative Learner)
+   Profile ID: 781e6903-b484-4a94-9ff5-989135c95153
+   Test Queries:
+     • "Can you show me creative ways to solve this problem?"
+     • "I want to explore the artistic side of mathematics"
+     • "How does this concept connect to real-world applications?"
+   Expected: Personalized response for creative learning style
+
+8. David Comeback (Methodical Learner)
+   Profile ID: f81494c9-4997-4c84-b2bc-cd996e56a56e
+   Test Queries:
+     • "I haven't done math in years, where should I start?"
+     • "I feel really behind, can you help me catch up?"
+     • "Can you be patient with me while I relearn this?"
+   Expected: Personalized response for methodical learning style
+
