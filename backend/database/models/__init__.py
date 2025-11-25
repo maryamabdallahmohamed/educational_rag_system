@@ -8,6 +8,32 @@ from .learning_unit import LearningUnit
 from .questionanswer import QuestionAnswer
 from .qa_Item import QuestionAnswerItem
 from .summary import SummaryRecord
+from .tutor_models import (
+    LearnerProfileModel,
+    TutoringSessionDBModel,
+    LearnerInteractionModel,
+    TopicProgressModel,
+    DifficultyLevelDB,
+    LearningStyleDB
+)
 
-__all__ = ["Base", "Document", "Chunk", "Conversation", "RouterDecision", "RouteType","ContentProcessorAgent","LearningUnit","QuestionAnswer",
-           "QuestionAnswerItem",'SummaryRecord']
+__all__ = [
+    "Base", 
+    "Document", 
+    "Chunk", 
+    "Conversation", 
+    "RouterDecision", 
+    "RouteType",
+    "ContentProcessorAgent",
+    "LearningUnit",
+    "QuestionAnswer",
+    "QuestionAnswerItem",
+    "SummaryRecord",
+    # Tutor models (mapped to existing tables)
+    "LearnerProfileModel",
+    "TutoringSessionDBModel",
+    "LearnerInteractionModel",
+    "TopicProgressModel",
+    "DifficultyLevelDB",
+    "LearningStyleDB"
+]

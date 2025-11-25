@@ -8,7 +8,13 @@ from backend.core.nodes.qa_node import QANode
 from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 
+# Import tutor routes
+from backend.api.routes.tutor import router as tutor_router
+
 app = FastAPI(title="Educational RAG API", version="1.0")
+
+# Register routers
+app.include_router(tutor_router, prefix="/api")
 
 # Node initialization
 document_loader = PDFLoader()
