@@ -5,7 +5,7 @@ class DocumentBuilder:
         self._content = None
         self._metadata = {}
 
-    def set_content(self, content: str):
+    def set_content(self, content: dict):
         self._content = content
         return self
 

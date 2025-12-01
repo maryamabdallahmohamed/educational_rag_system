@@ -48,6 +48,7 @@ def normalize_arabic(text):
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r'\b(\w+)\s+\1\b', r'\1', text)
     text = re.sub(r'[A-Za-z0-9]+', '', text)
+    text=text.replace("[غير واضح]", "")
     return text.strip()
 
 

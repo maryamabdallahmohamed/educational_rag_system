@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from typing import List, Set, Optional
 from langchain.schema import Document
 from backend.core.ocr_module.ocr_orchestrator import upload_document
@@ -17,14 +18,20 @@ class PDFLoader:
         self.builder = DocumentBuilder()
         logger.debug("PDFLoader initialized")
 
-    def _load_pdf(self, path: str) -> Optional[tuple[str, dict]]:
+    def _load_pdf(self, path: str) -> Optional[tuple[dict, str, dict]]:
         """Extract text and metadata from PDF (OCR if needed)."""
-        text, metadata = upload_document(path)
-        if isinstance(text, dict): 
-            text = "\n".join(text.values())
+        result = upload_document(path)
+        if not result:
+            return None, None, None
+        dict_text, metadata = result
+        if isinstance(dict_text, dict): 
+            text = "\n".join(dict_text.values())
+        else:
+            text = dict_text
+            dict_text = {"1": text}
         metadata["source"] = path
         metadata["loaded_at"] = datetime.now().isoformat()
-        return text, metadata
+        return dict_text, text, metadata
 
     def load_document(self, path: str) -> Optional[Document]:
         """Load a single PDF document and return a LangChain Document."""
@@ -37,15 +44,16 @@ class PDFLoader:
             return None
 
         try:
-            content, metadata = self._load_pdf(path)
-            if not content or not isinstance(content, str) or not content.strip():
+            dict_text, text, metadata = self._load_pdf(path)
+            if not dict_text: 
                 logger.warning("No valid content extracted", extra={"path": path})
                 return None
 
-            language = returnlang(content)
+            content_for_doc = json.dumps(dict_text)
+            language = returnlang(text)
             built_doc = (
                 self.builder
-                    .set_content(content)
+                    .set_content(content_for_doc)
                     .set_metadata(metadata)      
                     .add_metadata("language", language) 
                     .build()
@@ -70,11 +78,3 @@ class PDFLoader:
                 documents.append(doc)
         logger.info("Batch load complete", extra={"num_loaded": len(documents)})
         return documents
-    
-# loader=PDFLoader()
-# text,metadata=loader._load_pdf("/Users/maryamsaad/Documents/grad_data/quick1pagetest.pdf")
-# print(type(text))
-# print(metadata)
-# print(type(metadata))
-# print(metadata['file_name'])
-# print(metadata['file_name'])
