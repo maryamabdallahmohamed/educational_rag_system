@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
 from backend.database.models import Base
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String
 import uuid
 
 class Chunk(Base):
@@ -12,5 +13,6 @@ class Chunk(Base):
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"))
     content = Column(Text, nullable=False)
     embedding = Column(Vector(768))
+    from_page = Column(String)
 
     document = relationship("Document", back_populates="chunks")
