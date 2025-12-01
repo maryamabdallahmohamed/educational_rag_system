@@ -28,7 +28,7 @@ uploaded_documents: Dict[str, Any] = {}
 # Upload Document Endpoint
 # ---------------------------------------------------------------------------- #
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)):
     """Upload and store a document."""
     file_path = f"/tmp/{file.filename}"
     with open(file_path, "wb") as f:
@@ -39,7 +39,7 @@ async def upload_file(file: UploadFile = File(...)):
     if document is None:
         return {"error": "Failed to load document."}
 
-    await chunk_store_node.process([document], metadata=document.metadata)
+    await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
 
     # Save document in memory for later use
     uploaded_documents["latest"] = document

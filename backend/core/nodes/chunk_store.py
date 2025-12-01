@@ -22,7 +22,7 @@ class ChunkAndStoreNode:
             "builder": type(self.builder).__name__
         })
 
-    async def _insert_document(self, session, doc: Document, doc_dict):
+    async def _insert_document(self, session, doc: Document, doc_dict, session_id=None):
         doc_repo = DocumentRepository(session)
         metadata = doc.metadata or {}
 
@@ -30,6 +30,7 @@ class ChunkAndStoreNode:
             title=doc.metadata.get("file_name"),
             content=doc_dict,
             doc_metadata=metadata,
+            session_id=session_id
         )
         logger.debug("Inserted document DTO", extra={"doc_id": getattr(doc_dto, 'id', None)})
         return doc_dto
@@ -48,7 +49,7 @@ class ChunkAndStoreNode:
         logger.debug("Inserted chunk DTO", extra={"chunk_id": getattr(chunk_dto, 'id', None), "document_id": doc_id})
         return chunk_dto
 
-    async def process(self, documents: List[Document], metadata) -> List[Document]:
+    async def process(self, documents: List[Document], metadata, session_id=None) -> List[Document]:
         """Chunks, embeds, and stores documents in DB."""
         if not documents:
             logger.warning("No new documents found in state.")
@@ -81,7 +82,7 @@ class ChunkAndStoreNode:
                     full_text_content = "\n".join(str(v) for v in doc_dict.values())
 
                     # 1️⃣ Insert document
-                    doc_dto = await self._insert_document(session, doc, doc_dict)
+                    doc_dto = await self._insert_document(session, doc, doc_dict, session_id=session_id)
                     inserted_doc_ids.append(getattr(doc_dto, 'id', None))
 
                     # 2️⃣ Chunking (Per Page)
