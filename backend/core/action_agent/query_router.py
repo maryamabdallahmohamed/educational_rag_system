@@ -9,7 +9,7 @@ import re
 import json
 from typing import Dict, Any
 
-from prompts import SUBQUERY_ROUTER_PROMPT
+from backend.core.action_agent.prompts import SUBQUERY_ROUTER_PROMPT
 from backend.models.llms.groq_llm import GroqLLM  # adjust path if needed
 
 # Shared LLM wrapper instance
