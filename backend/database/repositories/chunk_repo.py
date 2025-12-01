@@ -20,6 +20,12 @@ class ChunkRepository(BaseRepository):
     async def get_by_page_number(self, page_number: int):
         result = await self.session.execute(select(Chunk).where(Chunk.from_page == page_number))
         return result.scalars().all()
+
+    async def get_by_document_and_page(self, doc_id, page_number: str):
+        result = await self.session.execute(
+            select(Chunk).where(Chunk.document_id == doc_id, Chunk.from_page == page_number)
+        )
+        return result.scalars().all()
     
     async def get_similar_chunks(self, query_embedding: list, top_k: int = 5):
         """

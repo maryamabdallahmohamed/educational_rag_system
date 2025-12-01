@@ -8,6 +8,7 @@ Used by FULL_ROUTER_CHAIN in chains.py.
 from typing import Dict, Any
 
 from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
+from backend.core.action_agent.handlers.actions.next_section import next_section_handler
 from backend.core.action_agent.handlers.queries.qa import QANode
 from backend.core.action_agent.handlers.queries.summarization import SummarizationNode
 
@@ -38,8 +39,8 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     #     return bookmark_handler(payload)
     # if action_type == "show_bookmarks":
     #     return show_bookmarks_handler(payload)
-    # if action_type == "next_section":
-    #     return next_section_handler(payload)
+    if action_type == "next_section":
+        return next_section_handler(payload)
     # if action_type == "prev_section":
     #     return prev_section_handler(payload)
     # if action_type == "location":
