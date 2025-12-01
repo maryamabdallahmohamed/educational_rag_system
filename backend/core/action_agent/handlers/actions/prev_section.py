@@ -4,10 +4,10 @@ from backend.database.db import NeonDatabase
 from backend.database.repositories.chunk_repo import ChunkRepository
 from backend.database.repositories.document_repo import DocumentRepository
 from backend.database.db import NeonDatabase
-from backend.utils.logger import logger
+from backend.utils.logger_config import get_logger
 import os
 import re
-logger = logging.getLogger("PreviousSectionHandler")
+logger = get_logger("PreviousSectionHandler")
 
 async def _get_previous_section(doc_id: str, current_page: str):
     try:
