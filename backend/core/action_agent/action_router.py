@@ -1,30 +1,19 @@
 """
 action_router.py
 
-Backend-ready action router using SUBACTION_ROUTER_PROMPT.
+Backend-ready action router using SUBACTION_ROUTER_PROMPT and GroqLLM.
 Maps messages to concrete action types like "open_doc", "add_note", etc.
 """
 
-import os
 import re
 import json
 from typing import Dict, Any
 
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage
-
 from prompts import SUBACTION_ROUTER_PROMPT
+from backend.models.llms.groq_llm import GroqLLM  # adjust path if needed
 
-# Load environment variables
-load_dotenv()
-groq_api_key = os.getenv("GROQ_API_KEY")
-
-# Initialize LLM
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=groq_api_key,
-)
+# Shared LLM wrapper instance
+_llm_wrapper = GroqLLM()
 
 JSON_BLOCK_REGEX = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -37,17 +26,13 @@ def _extract_json_block(text: str) -> Dict[str, Any]:
     match = JSON_BLOCK_REGEX.search(text)
     if not match:
         return {}
-
     try:
         return json.loads(match.group(0))
     except Exception:
         return {}
 
 
-def route_action_message(
-    user_message: str,
-    llm_client: ChatGroq | None = None,
-) -> Dict[str, Any]:
+def route_action_message(user_message: str) -> Dict[str, Any]:
     """
     Route an action-style message to a concrete action type.
 
@@ -55,8 +40,6 @@ def route_action_message(
     ----------
     user_message : str
         Raw user input text (already classified as 'action' by the intent classifier).
-    llm_client : ChatGroq | None
-        Optional injected LLM client.
 
     Returns
     -------
@@ -67,15 +50,11 @@ def route_action_message(
           "action_details": str,
         }
     """
-    client = llm_client or llm
-
-    # Build prompt
     prompt = SUBACTION_ROUTER_PROMPT.replace("{user_message}", user_message)
 
-    # Call LLM
-    response = client.invoke([HumanMessage(content=prompt)]).content.strip()
+    messages = [{"role": "user", "content": prompt}]
+    response = _llm_wrapper.invoke(messages).strip()
 
-    # Parse JSON
     parsed = _extract_json_block(response)
 
     action_type = parsed.get("action_type", "unknown")
@@ -103,11 +82,8 @@ def route_action_message(
 
 
 if __name__ == "__main__":
-    # Simple manual test
     while True:
         text = input("Action command (type 'exit' to quit): ")
         if text.strip().lower() == "exit":
             break
-
-        result = route_action_message(text)
-        print(result)
+        print(route_action_message(text))

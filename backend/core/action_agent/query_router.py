@@ -1,30 +1,19 @@
 """
 query_router.py
 
-Backend-ready query router using SUBQUERY_ROUTER_PROMPT.
+Backend-ready query router using SUBQUERY_ROUTER_PROMPT and GroqLLM.
 Classifies a query into: "qa", "summarization", or "content_processor_agent".
 """
 
-import os
 import re
 import json
 from typing import Dict, Any
 
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_core.messages import HumanMessage
-
 from prompts import SUBQUERY_ROUTER_PROMPT
+from backend.models.llms.groq_llm import GroqLLM  # adjust path if needed
 
-# Load environment variables
-load_dotenv()
-groq_api_key = os.getenv("GROQ_API_KEY")
-
-# Initialize LLM
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=groq_api_key,
-)
+# Shared LLM wrapper instance
+_llm_wrapper = GroqLLM()
 
 JSON_BLOCK_REGEX = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -37,17 +26,13 @@ def _extract_json_block(text: str) -> Dict[str, Any]:
     match = JSON_BLOCK_REGEX.search(text)
     if not match:
         return {}
-
     try:
         return json.loads(match.group(0))
     except Exception:
         return {}
 
 
-def route_query_message(
-    user_message: str,
-    llm_client: ChatGroq | None = None,
-) -> Dict[str, Any]:
+def route_query_message(user_message: str) -> Dict[str, Any]:
     """
     Route a query into one of: "qa", "summarization", "content_processor_agent".
 
@@ -55,8 +40,6 @@ def route_query_message(
     ----------
     user_message : str
         Raw user input text.
-    llm_client : ChatGroq | None
-        Optional injected LLM client.
 
     Returns
     -------
@@ -67,15 +50,11 @@ def route_query_message(
           "route_details": str,
         }
     """
-    client = llm_client or llm
-
-    # Build prompt
     prompt = SUBQUERY_ROUTER_PROMPT.replace("{user_message}", user_message)
 
-    # Call LLM
-    response = client.invoke([HumanMessage(content=prompt)]).content.strip()
+    messages = [{"role": "user", "content": prompt}]
+    response = _llm_wrapper.invoke(messages).strip()
 
-    # Parse JSON
     parsed = _extract_json_block(response)
 
     route = parsed.get("route", "content_processor_agent")
@@ -103,11 +82,8 @@ def route_query_message(
 
 
 if __name__ == "__main__":
-    # Simple manual test
     while True:
         text = input("Query (type 'exit' to quit): ")
         if text.strip().lower() == "exit":
             break
-
-        result = route_query_message(text)
-        print(result)
+        print(route_query_message(text))
