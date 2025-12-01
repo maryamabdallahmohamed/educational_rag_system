@@ -7,7 +7,8 @@ from backend.core.nodes.chunk_store import ChunkAndStoreNode
 from backend.core.nodes.qa_node import QANode
 from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
-
+from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
+from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
 app = FastAPI(title="Educational RAG API", version="1.0")
 
 # Node initialization
@@ -94,6 +95,24 @@ async def cpa_agent_endpoint(query: str = Form(...)):
     document = uploaded_documents["latest"]
     result = await cpa_agent.process(query=query, document=document)
     return {"query": query, "result": result}
+
+# ---------------------------------------------------------------------------- #
+# Action Agent Route Endpoint
+# ---------------------------------------------------------------------------- #
+@app.post("/api/action_route")
+def route_message(query: str = Form(...)):
+    """
+    Route a message using the Action Agent's router chain.
+    """
+    result = FULL_ROUTER_CHAIN.invoke(
+        {
+            "user_message": query,
+            "dispatch_action": dispatch_action,
+            "dispatch_query": dispatch_query,
+        }
+    )
+    return result
+
 
 
 # ---------------------------------------------------------------------------- #

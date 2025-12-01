@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from chains import FULL_ROUTER_CHAIN
-from handlers.dispatchers import dispatch_action, dispatch_query
+from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
+from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
 
 app = FastAPI()
 

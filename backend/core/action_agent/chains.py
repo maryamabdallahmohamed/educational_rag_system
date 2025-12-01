@@ -1,11 +1,11 @@
 from typing import Dict, Any, Callable
 from langchain_core.runnables import RunnableLambda
 
-from intent_classification import classify_intent_message
-from query_router import route_query_message
-from action_router import route_action_message
+from backend.core.action_agent.intent_classification import classify_intent_message
+from backend.core.action_agent.query_router import route_query_message
+from backend.core.action_agent.action_router import route_action_message
 
-from handlers.dispatchers import dispatch_action, dispatch_query
+from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
 
 #-----------------------------
 # Chain functions
