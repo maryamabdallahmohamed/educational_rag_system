@@ -104,13 +104,14 @@ async def cpa_agent_endpoint(query: str = Form(...)):
 # Action Agent Route Endpoint
 # ---------------------------------------------------------------------------- #
 @app.post("/api/action_route")
-def route_message(query: str = Form(...)):
+def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
     Route a message using the Action Agent's router chain.
     """
     result = FULL_ROUTER_CHAIN.invoke(
         {
             "user_message": query,
+            "session_id": session_id,
             "dispatch_action": dispatch_action,
             "dispatch_query": dispatch_query,
         }

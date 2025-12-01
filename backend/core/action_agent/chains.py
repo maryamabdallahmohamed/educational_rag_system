@@ -34,6 +34,7 @@ ACTION_ROUTER_CHAIN = RunnableLambda(_action_router_chain_fn)
 #-----------------------------
 def _full_router_logic(inputs: Dict[str, Any]) -> Dict[str, Any]:
     user_message: str = inputs["user_message"]
+    session_id: str | None = inputs.get("session_id")
     dispatch_action: Callable | None = inputs.get("dispatch_action")
     dispatch_query: Callable | None = inputs.get("dispatch_query")
 
@@ -41,6 +42,7 @@ def _full_router_logic(inputs: Dict[str, Any]) -> Dict[str, Any]:
 
     result: Dict[str, Any] = {
         "user_message": user_message,
+        "session_id": session_id,
         "intent": intent,
         "query_route": None,
         "action_route": None,
@@ -55,6 +57,7 @@ def _full_router_logic(inputs: Dict[str, Any]) -> Dict[str, Any]:
             result["dispatch_result"] = dispatch_query(
                 {
                     "user_message": user_message,
+                    "session_id": session_id,
                     **q_route,
                 }
             )
@@ -67,6 +70,7 @@ def _full_router_logic(inputs: Dict[str, Any]) -> Dict[str, Any]:
             result["dispatch_result"] = dispatch_action(
                 {
                     "user_message": user_message,
+                    "session_id": session_id,
                     **a_route,
                 }
             )

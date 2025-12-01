@@ -21,6 +21,7 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     Expected payload keys:
       - user_message: str
+      - session_id: str | None
       - action_type: str
       - action_confidence: float
       - action_details: str

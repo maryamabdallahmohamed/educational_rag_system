@@ -35,8 +35,9 @@ async def _get_next_section(doc_id: str, current_page: str):
             chunks = await chunk_repo.get_by_document_and_page(doc_id, next_page)
             logger.info(f"Next section for document {doc_id} and page {current_page} fetched successfully")
             return chunks, next_page, None
-    finally:
-        await engine.dispose()
+    except Exception as e:
+        logger.error(f"Error fetching next section: {e}")
+        return None, None, str(e)
 
 
 def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -46,6 +47,8 @@ def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
     Ensures document-page coherence by filtering by both document_id and page.
     """
     doc_id = payload.get("document_id")
+    current_page = payload.get("current_page")
+    session_id = payload.get("session_id")
     current_page = payload.get("current_page")
     
     if not doc_id or current_page is None:
@@ -64,7 +67,8 @@ def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "action": "next_section",
                 "message": error_msg,
                 "document_id": doc_id,
-                "page": next_page 
+                "page": next_page,
+                "session_id": session_id
             }
 
         if chunks:
@@ -74,7 +78,8 @@ def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "action": "next_section",
                 "document_id": doc_id,
                 "page": next_page,
-                "chunks": chunk_data
+                "chunks": chunk_data,
+                "session_id": session_id
             }
         else:
             return {
@@ -82,12 +87,14 @@ def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "action": "next_section",
                 "message": "No chunks found for next page.",
                 "document_id": doc_id,
-                "page": next_page
+                "page": next_page,
+                "session_id": session_id
             }
             
     except Exception as e:
         return {
             "status": "error",
             "action": "next_section",
-            "message": str(e)
+            "message": str(e),
+            "session_id": session_id
         }
