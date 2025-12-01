@@ -29,7 +29,6 @@ class PDFLoader:
         else:
             text = dict_text
             dict_text = {"1": text}
-            
         metadata["source"] = path
         metadata["loaded_at"] = datetime.now().isoformat()
         return dict_text, text, metadata
