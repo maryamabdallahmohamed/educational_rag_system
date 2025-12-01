@@ -40,10 +40,11 @@ def upload_document(pdf_path):
     start = time.time()
     reader = PdfReader(pdf_path)
     text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-
-
+    pages_dict = {}
+    for i, page in enumerate(reader.pages):
+        page_text = page.extract_text() or ""
+        text += page_text
+        pages_dict[str(i+1)] = page_text
     if text.strip():
         arabic_chars = re.findall(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]', text)
         arabic_ratio = len(arabic_chars) / max(len(text), 1)
@@ -60,12 +61,15 @@ def upload_document(pdf_path):
             "num_pages": len(reader.pages),
             "method": "pdf_extract",
             "processing_time": round(time.time() - start, 2),
-            "text_length": sum(len(t) for t in texts.values()),
+            "text_length": sum(len(t) for t in pages_dict.values()),
             "gibberish_detected": gibberish,
             "arabic_ratio": round(arabic_ratio, 3),
         }
         logger.info("✅ Extracted clean text directly from PDF.")
-        return text, metadata
+        return pages_dict, metadata
+    logger.info("⚠️ Empty text detected, switching to OCR.")
+    texts, metadata = ocr_pdf(pdf_path)
+    return texts, metadata
 
 
 
