@@ -9,7 +9,11 @@ from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
+from backend.api.routers import sessions
+
 app = FastAPI(title="Educational RAG API", version="1.0")
+
+app.include_router(sessions.router)
 
 # Node initialization
 document_loader = PDFLoader()
