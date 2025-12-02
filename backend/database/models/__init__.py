@@ -8,6 +8,8 @@ from .learning_unit import LearningUnit
 from .questionanswer import QuestionAnswer
 from .qa_Item import QuestionAnswerItem
 from .summary import SummaryRecord
+from .session import Session
+from .note import Note
 
 __all__ = ["Base", "Document", "Chunk", "Conversation", "RouterDecision", "RouteType","ContentProcessorAgent","LearningUnit","QuestionAnswer",
-           "QuestionAnswerItem",'SummaryRecord']
+           "QuestionAnswerItem",'SummaryRecord', 'Session', 'Note']

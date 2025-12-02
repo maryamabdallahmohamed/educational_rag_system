@@ -9,7 +9,11 @@ from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
+from backend.api.routers import sessions
+
 app = FastAPI(title="Educational RAG API", version="1.0")
+
+app.include_router(sessions.router)
 
 # Node initialization
 document_loader = PDFLoader()
@@ -24,7 +28,7 @@ uploaded_documents: Dict[str, Any] = {}
 # Upload Document Endpoint
 # ---------------------------------------------------------------------------- #
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)):
     """Upload and store a document."""
     file_path = f"/tmp/{file.filename}"
     with open(file_path, "wb") as f:
@@ -35,7 +39,7 @@ async def upload_file(file: UploadFile = File(...)):
     if document is None:
         return {"error": "Failed to load document."}
 
-    await chunk_store_node.process([document], metadata=document.metadata)
+    await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
 
     # Save document in memory for later use
     uploaded_documents["latest"] = document
@@ -100,13 +104,14 @@ async def cpa_agent_endpoint(query: str = Form(...)):
 # Action Agent Route Endpoint
 # ---------------------------------------------------------------------------- #
 @app.post("/api/action_route")
-def route_message(query: str = Form(...)):
+def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
     Route a message using the Action Agent's router chain.
     """
     result = FULL_ROUTER_CHAIN.invoke(
         {
             "user_message": query,
+            "session_id": session_id,
             "dispatch_action": dispatch_action,
             "dispatch_query": dispatch_query,
         }
