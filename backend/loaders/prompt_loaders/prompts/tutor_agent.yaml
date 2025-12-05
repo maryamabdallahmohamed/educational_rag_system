@@ -6,6 +6,9 @@ SYSTEM_PROMPT: |
 
   The user's query is: {input}
   The result of the previous agent is: {result}
+  The user's previous query is: {previous_query}
+  The user's current query is: {current_query}
+  If previous_query is empty, it means this is the first query and no adaptive tool should be used.
   Use this reasoning format:
 
   Question: {input}

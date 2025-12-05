@@ -25,6 +25,7 @@ cpa_agent = ContentProcessorAgent()
 tutor_agent = TutorAgent()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
+current_query: Dict[str, Any] = {}
 
 # ---------------------------------------------------------------------------- #
 # Upload Document Endpoint
@@ -68,7 +69,7 @@ async def qa_endpoint(query: str = Form(...)):
     """Answer questions using the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
-
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await qa_node.process(query=query, documents=[document])
     return {"query": query, "result": result}
@@ -82,7 +83,7 @@ async def summarize_endpoint(query: str = Form(...)):
     """Summarize the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
-
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await summarization_node.process(query=query, documents=[document])
     return {"query": query, "result": result}
@@ -111,10 +112,11 @@ async def tutor_agent_endpoint(query: str = Form(...)):
     """Run the Tutor Agent on the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
-
+    previous_query = current_query.get("latest", None)
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
     cpa_result = await cpa_agent.process(query=query, document=document)
-    tutor_result = await tutor_agent.process(query=query,result=cpa_result)
+    tutor_result = await tutor_agent.process(query=query,result=cpa_result,previous_query=previous_query)
     return {"query": query, "result": tutor_result}
 
 # ---------------------------------------------------------------------------- #

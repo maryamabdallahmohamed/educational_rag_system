@@ -4,6 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
 from backend.models.llms.groq_llm import GroqLLM
 from backend.core.agents.tutor_agent_handlers.phrasing_handler import PhrasingInfoHandler
+from backend.core.agents.tutor_agent_handlers.adaptive_handler import AdaptiveHandler
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 logger = get_logger("tutor_agent")
@@ -17,7 +18,7 @@ class TutorAgent:
         self.current_state = {}
 
         # Register handlers & tools
-        self.handlers = [PhrasingInfoHandler()]
+        self.handlers = [PhrasingInfoHandler(), AdaptiveHandler()]
         self.tools = [handler.tool() for handler in self.handlers]
 
         for tool in self.tools:
@@ -34,7 +35,7 @@ class TutorAgent:
         prompt_template = PromptLoader.load_system_prompt("prompts/tutor_agent.yaml")
         prompt = PromptTemplate(
             template=prompt_template,
-            input_variables=["input","result", "tools", "tool_names", "agent_scratchpad"]
+            input_variables=["input","result", "tools", "tool_names", "agent_scratchpad", "previous_query", "current_query"]
         )
 
         agent = create_react_agent(
@@ -55,7 +56,7 @@ class TutorAgent:
     # ----------------------------------------------------------------------
     # Agent Processing Logic
     # ----------------------------------------------------------------------
-    async def process(self, query: str, result=None):
+    async def process(self, query: str, result=None, previous_query=None):
         """Run the agent on the given query."""
         query = query.strip()
 
@@ -64,6 +65,9 @@ class TutorAgent:
 
         try:
             if result:
+                # Inject queries into state for handlers (e.g. AdaptiveHandler)
+                result["previous_query"] = previous_query
+                result["current_query"] = query
                 self._set_handler_states(result)
 
             logger.info("TutorAgent: Executing query...")
@@ -71,6 +75,8 @@ class TutorAgent:
             output = await self.agent_executor.ainvoke({
                 "input": query,
                 "result": result,
+                "previous_query": previous_query,
+                "current_query": query,
                 "agent_scratchpad": ""
             })
             answer = output.get("output", "I couldn't process your request.")
