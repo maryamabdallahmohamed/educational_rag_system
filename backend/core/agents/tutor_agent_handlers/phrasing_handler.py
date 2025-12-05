@@ -62,6 +62,12 @@ class PhrasingInfoHandler(BaseHandler):
         """
         Extracts whatever is in the dict and passes it to the LLM.
         """
+        if isinstance(state, str):
+            try:
+                state = json.loads(state)
+            except json.JSONDecodeError:
+                pass
+
         if not isinstance(state, dict) or not state:
             return "No educational content available to process."
 

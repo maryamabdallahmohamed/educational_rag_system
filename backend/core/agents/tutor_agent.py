@@ -49,14 +49,25 @@ class TutorAgent:
                     tools=self.tools,
                     verbose=True,
                     max_iterations=5,
-                    handle_parsing_errors=True,
+                    max_iterations=5,
+                    handle_parsing_errors=self._handle_error,
                     max_execution_time=800
                 )
+
+    def _handle_error(self, error) -> str:
+        """
+        Handle parsing errors by treating appropriate errors as the final answer.
+        """
+        response = str(error)
+        if "Could not parse LLM output" in response or "Invalid Format" in response:
+             if "`" in response:
+                 return response.split("`")[1]
+        return f"Error: {str(error)}"
 
     # ----------------------------------------------------------------------
     # Agent Processing Logic
     # ----------------------------------------------------------------------
-    async def process(self, query: str, result=None, previous_query=None):
+    async def process(self, query: str, cpa_result,current_query=None, previous_query=None):
         """Run the agent on the given query."""
         query = query.strip()
 
@@ -64,17 +75,14 @@ class TutorAgent:
             return "Please provide an input"
 
         try:
-            if result:
-                # Inject queries into state for handlers (e.g. AdaptiveHandler)
-                result["previous_query"] = previous_query
-                result["current_query"] = query
-                self._set_handler_states(result)
+            if cpa_result:
+                self._set_handler_states(cpa_result)
 
             logger.info("TutorAgent: Executing query...")
             tool_names = [tool.name for tool in self.tools]
             output = await self.agent_executor.ainvoke({
                 "input": query,
-                "result": result,
+                "result": cpa_result,
                 "previous_query": previous_query,
                 "current_query": query,
                 "agent_scratchpad": ""

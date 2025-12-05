@@ -116,7 +116,7 @@ async def tutor_agent_endpoint(query: str = Form(...)):
     current_query["latest"] = query
     document = uploaded_documents["latest"]
     cpa_result = await cpa_agent.process(query=query, document=document)
-    tutor_result = await tutor_agent.process(query=query,result=cpa_result,previous_query=previous_query)
+    tutor_result = await tutor_agent.process(query=query,cpa_result=cpa_result,current_query=current_query,previous_query=previous_query)
     return {"query": query, "result": tutor_result}
 
 # ---------------------------------------------------------------------------- #
