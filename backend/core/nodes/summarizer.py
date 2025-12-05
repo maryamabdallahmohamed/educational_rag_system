@@ -60,6 +60,7 @@ class SummarizationNode(metaclass=SingletonMeta):
             return None
         self.logger.debug("Prepared context of length: %d characters", len(context))
         
+        result = None
         try:
             # Generate summary using the chain
             result = self._generate_summary(context, query, language)

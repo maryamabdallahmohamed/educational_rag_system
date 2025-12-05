@@ -26,7 +26,7 @@ def load_ocr_model():
     """
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         MODEL_ID,
-        torch_dtype=torch.float16,
+        dtype=torch.float16,
         trust_remote_code=True,
         cache_dir="backend/core/ocr_module/Qari_model_cache"
     ).to(DEVICE)
