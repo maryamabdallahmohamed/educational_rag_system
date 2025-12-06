@@ -1,0 +1,14 @@
+torch>=1.13.0
+torchaudio>=0.13.0
+transformers>=4.30.0
+accelerate
+fastapi
+uvicorn[standard]
+pydantic
+soundfile
+python-multipart
+jiwer
+huggingface-hub
+tqdm
+pandas
+scipy
