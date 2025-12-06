@@ -7,9 +7,10 @@ class TutorResultsRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, cpa_result, tutor_result_text):
+    async def create(self, query,cpa_result, tutor_result_text):
         new_result = TutorResults(
             result_id=uuid.uuid4(),
+            query=query,
             cpa_result=cpa_result,
             tutor_result=tutor_result_text
         )

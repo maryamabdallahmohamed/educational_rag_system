@@ -66,14 +66,14 @@ class TutorAgent:
                  return response.split("`")[1]
         return f"Error: {str(error)}"
 
-    async def _save_db(self, cpa_result, tutor_result_text, tools_used):
+    async def _save_db(self, query,cpa_result, tutor_result_text, tools_used):
         try:
             async with NeonDatabase.get_session() as session:
                 tutor_results_repo = TutorResultsRepository(db=session)
                 tools_output_repo = ToolOutputRepository(db=session)
                 
                 # Create the main result first
-                saved_result = await tutor_results_repo.create(cpa_result=cpa_result, tutor_result_text=tutor_result_text)
+                saved_result = await tutor_results_repo.create(query=query,cpa_result=cpa_result, tutor_result_text=tutor_result_text)
                 
                 # Then create tool outputs linked to it
                 for tool in tools_used:
@@ -127,7 +127,7 @@ class TutorAgent:
             scratchpad = output.get("agent_scratchpad", "")
             tools_used = self.scratchpad_parser(scratchpad)
             self.current_state["answer"] = answer
-            await self._save_db(cpa_result, answer, tools_used)
+            await self._save_db(query,cpa_result, answer, tools_used)
             logger.info("TutorAgent: Execution complete.")
 
             return self.current_state   
