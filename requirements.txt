@@ -25,3 +25,13 @@ SQLAlchemy==2.0.43
 tomli==2.0.1
 torch==2.8.0
 uvicorn==0.30.0
+torchaudio>=0.13.0
+transformers>=4.30.0
+accelerate
+pydantic
+soundfile
+jiwer
+huggingface-hub
+tqdm
+pandas
+scipy
