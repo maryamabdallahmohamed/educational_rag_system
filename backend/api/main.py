@@ -88,20 +88,6 @@ async def summarize_endpoint(query: str = Form(...)):
     result = await summarization_node.process(query=query, documents=[document])
     return {"query": query, "result": result}
 
-# # ---------------------------------------------------------------------------- #
-# # CPA Agent Endpoint
-# # ---------------------------------------------------------------------------- #
-
-
-# @app.post("/api/cpa_agent")
-# async def cpa_agent_endpoint(query: str = Form(...)):
-#     """Run the Content Processor Agent (CPA) on the latest uploaded document."""
-#     if "latest" not in uploaded_documents:
-#         return {"error": "No document uploaded yet."}
-
-#     document = uploaded_documents["latest"]
-#     result = await cpa_agent.process(query=query, document=document)
-#     return {"query": query, "result": result}
 
 
 # ---------------------------------------------------------------------------- #
@@ -123,7 +109,7 @@ async def tutor_agent_endpoint(query: str = Form(...)):
 # Action Agent Route Endpoint
 # ---------------------------------------------------------------------------- #
 @app.post("/api/action_route")
-def route_message(query: str = Form(...), session_id: str = Form(None)):
+async def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
     Route a message using the Action Agent's router chain.
     """
@@ -136,6 +122,20 @@ def route_message(query: str = Form(...), session_id: str = Form(None)):
         }
     )
     return result
+# ---------------------------------------------------------------------------- #
+# LearnableUnitsGenerator Endpoint
+# ---------------------------------------------------------------------------- #
+@app.post("/api/learnable_units_generator")
+async def learnable_units_generator(session_id: str = Form(None)):
+    """
+    Generate learnable units using the LearnableUnitsGenerator.
+    """
+    document = uploaded_documents["latest"]
+    summary_result = await summarization_node.process(query=' ', documents=[document])
+    summary_text = str(summary_result)
+    cpa_result = await cpa_agent.process(query=summary_text, document=document)
+    tutor_result = await tutor_agent.process(query=' ', cpa_result=cpa_result, current_query=current_query, previous_query=None)
+    return {"result": tutor_result}
 
 
 

@@ -7,6 +7,9 @@ from backend.core.agents.tutor_agent_handlers.phrasing_handler import PhrasingIn
 from backend.core.agents.tutor_agent_handlers.adaptive_handler import AdaptiveHandler
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
+from backend.database.repositories.tutor_results_repo import TutorResultsRepository
+from backend.database.repositories.tool_output import ToolOutputRepository
+from backend.database.db import NeonDatabase
 logger = get_logger("tutor_agent")
 
 
@@ -49,7 +52,6 @@ class TutorAgent:
                     tools=self.tools,
                     verbose=True,
                     max_iterations=5,
-                    max_iterations=5,
                     handle_parsing_errors=self._handle_error,
                     max_execution_time=800
                 )
@@ -64,6 +66,40 @@ class TutorAgent:
                  return response.split("`")[1]
         return f"Error: {str(error)}"
 
+    async def _save_db(self, query,cpa_result, tutor_result_text, tools_used):
+        try:
+            async with NeonDatabase.get_session() as session:
+                tutor_results_repo = TutorResultsRepository(db=session)
+                tools_output_repo = ToolOutputRepository(db=session)
+                
+                # Create the main result first
+                saved_result = await tutor_results_repo.create(query=query,cpa_result=cpa_result, tutor_result_text=tutor_result_text)
+                
+                # Then create tool outputs linked to it
+                for tool in tools_used:
+                    await tools_output_repo.create(
+                        tool_name=tool, 
+                        input_state=cpa_result, 
+                        output=tutor_result_text,
+                        tutor_result_id=saved_result.result_id
+                    )
+
+                logger.info(f"Saved tutor operation to database: {saved_result.result_id}")
+        except Exception as e:
+            logger.error(f"Failed to save tutor operation to database: {e}")
+        
+
+
+    def scratchpad_parser(self, scratchpad):
+        tools_used = []
+        for line in scratchpad.splitlines():
+            if "Action:" in line:
+                # extract the tool name after "Action:"
+                parts = line.split("Action:")
+                if len(parts) > 1:
+                    tools_used.append(parts[1].strip())
+        return tools_used
+        
     # ----------------------------------------------------------------------
     # Agent Processing Logic
     # ----------------------------------------------------------------------
@@ -88,8 +124,10 @@ class TutorAgent:
                 "agent_scratchpad": ""
             })
             answer = output.get("output", "I couldn't process your request.")
-
+            scratchpad = output.get("agent_scratchpad", "")
+            tools_used = self.scratchpad_parser(scratchpad)
             self.current_state["answer"] = answer
+            await self._save_db(query,cpa_result, answer, tools_used)
             logger.info("TutorAgent: Execution complete.")
 
             return self.current_state   

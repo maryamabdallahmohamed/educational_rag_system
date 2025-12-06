@@ -221,3 +221,4 @@ logs
 .dockerignore
 backend/core/ocr_module/Qari_model_cache
 backend/core/ocr_module/Qwen_processor_cache
+.DS_Store

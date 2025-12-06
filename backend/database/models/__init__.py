@@ -10,6 +10,7 @@ from .qa_Item import QuestionAnswerItem
 from .summary import SummaryRecord
 from .session import Session
 from .note import Note
-
+from .tutor_results import TutorResults
+from .tool_output import ToolOutput
 __all__ = ["Base", "Document", "Chunk", "Conversation", "RouterDecision", "RouteType","ContentProcessorAgent","LearningUnit","QuestionAnswer",
-           "QuestionAnswerItem",'SummaryRecord', 'Session', 'Note']
+           "QuestionAnswerItem",'SummaryRecord', 'Session', 'Note', 'TutorResults', 'ToolOutput']

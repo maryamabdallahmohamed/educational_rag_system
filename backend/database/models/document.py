@@ -14,4 +14,4 @@ class Document(Base):
     doc_metadata = Column(JSON, nullable=True)
 
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
-    queries = relationship("Query", back_populates="document", cascade="all, delete-orphan")
+
