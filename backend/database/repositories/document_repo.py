@@ -1,10 +1,11 @@
 from sqlalchemy.future import select
 from backend.database.models.document import Document
 from .base_repo import BaseRepository
+import uuid
 
 class DocumentRepository(BaseRepository):
-    async def add(self, title: str, content: dict, doc_metadata: dict = None):
-        doc = Document(title=title, content=content, doc_metadata=doc_metadata)
+    async def add(self, title: str, content: dict, doc_metadata: dict = None, session_id: uuid.UUID = None):
+        doc = Document(title=title, content=content, doc_metadata=doc_metadata, session_id=session_id)
         self.session.add(doc)
         await self.session.commit()
         await self.session.refresh(doc)

@@ -7,6 +7,7 @@ import asyncio
 
 # ===== RAG Imports =====
 from backend.core.agents.content_processor_agent import ContentProcessorAgent
+from backend.core.agents.tutor_agent import TutorAgent
 from backend.core.nodes.loader import PDFLoader
 from backend.core.nodes.chunk_store import ChunkAndStoreNode
 from backend.core.nodes.qa_node import QANode
@@ -36,12 +37,22 @@ app.add_middleware(
 )
 
 # ===== RAG Components =====
+from backend.api.routers import sessions
+
+app = FastAPI(title="Educational RAG API", version="1.0")
+
+app.include_router(sessions.router)
+
+# Node initialization
 document_loader = PDFLoader()
 chunk_store_node = ChunkAndStoreNode()
 qa_node = QANode()
 summarization_node = SummarizationNode()
 cpa_agent = ContentProcessorAgent()
+tutor_agent = TutorAgent()
+# In-memory store
 uploaded_documents: Dict[str, Any] = {}
+current_query: Dict[str, Any] = {}
 
 # ===== STT Components =====
 stt: SeamlessModel | None = None
@@ -94,8 +105,8 @@ async def health() -> dict:
 # ============================================================================
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Upload and store a document (PDF)."""
+async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)):
+    """Upload and store a document."""
     file_path = f"/tmp/{file.filename}"
     with open(file_path, "wb") as f:
         f.write(await file.read())
@@ -104,7 +115,9 @@ async def upload_file(file: UploadFile = File(...)):
     if document is None:
         raise HTTPException(status_code=400, detail="Failed to load document.")
 
-    await chunk_store_node.process([document], metadata=document.metadata)
+    await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
+
+    # Save document in memory for later use
     uploaded_documents["latest"] = document
     uploaded_documents["latest_metadata"] = document.metadata
 
@@ -130,8 +143,8 @@ async def route_query(query: str = Form(...)):
 async def qa_endpoint(query: str = Form(...)):
     """Answer questions using the latest uploaded document."""
     if "latest" not in uploaded_documents:
-        raise HTTPException(status_code=400, detail="No document uploaded yet.")
-
+        return {"error": "No document uploaded yet."}
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await qa_node.process(query=query, documents=[document])
 
@@ -146,26 +159,27 @@ async def qa_endpoint(query: str = Form(...)):
 async def summarize_endpoint(query: str = Form(...)):
     """Summarize the latest uploaded document."""
     if "latest" not in uploaded_documents:
-        raise HTTPException(status_code=400, detail="No document uploaded yet.")
-
+        return {"error": "No document uploaded yet."}
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await summarization_node.process(query=query, documents=[document])
 
-    return {
-        "query": query,
-        "result": result,
-        "service": "RAG - Summarization"
-    }
 
 
-@app.post("/api/cpa_agent")
-async def cpa_agent_endpoint(query: str = Form(...)):
-    """Run the Content Processor Agent (CPA) on the latest uploaded document."""
+# ---------------------------------------------------------------------------- #
+# Tutor  Agent Endpoint
+# ---------------------------------------------------------------------------- #
+@app.post("/api/agents")
+async def tutor_agent_endpoint(query: str = Form(...)):
+    """Run the Tutor Agent on the latest uploaded document."""
     if "latest" not in uploaded_documents:
-        raise HTTPException(status_code=400, detail="No document uploaded yet.")
-
+        return {"error": "No document uploaded yet."}
+    previous_query = current_query.get("latest", None)
+    current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await cpa_agent.process(query=query, document=document)
+    cpa_result = await cpa_agent.process(query=query, document=document)
+    tutor_result = await tutor_agent.process(query=query,cpa_result=cpa_result,current_query=current_query,previous_query=previous_query)
+    return {"query": query, "result": tutor_result}
 
     return {
         "query": query,
@@ -175,111 +189,7 @@ async def cpa_agent_endpoint(query: str = Form(...)):
 
 
 @app.post("/api/action_route")
-def route_message(query: str = Form(...)):
-    """Route a message using the Action Agent's router chain."""
-    result = FULL_ROUTER_CHAIN.invoke({
-        "user_message": query,
-        "dispatch_action": dispatch_action,
-        "dispatch_query": dispatch_query,
-    })
-    return {
-        "result": result,
-        "service": "RAG - Action Agent"
-    }
-
-
-# ============================================================================
-# SPEECH-TO-TEXT ENDPOINTS (SEAMLESSM4TV2)
-# ============================================================================
-
-@app.post("/api/transcribe")
-async def transcribe(
-    file: UploadFile = File(..., description="Audio file (MP3, WAV, FLAC, OGG, etc.)"),
-    tgt_lang: str = Form("arb", description="Target language code (default: Egyptian Arabic)"),
-    clean: bool = Form(False, description="Apply Arabic text cleaning"),
-    max_duration_sec: float = Form(30.0, description="Max audio duration in seconds"),
-) -> dict:
-    global stt
-
-    if stt is None:
-        raise HTTPException(status_code=500, detail="STT model not initialized")
-
-    try:
-        # 1. Validate file format
-        file_ext = Path(file.filename).suffix.lower() if file.filename else ""
-        
-        if not file_ext:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File has no extension. Supported: {', '.join(SUPPORTED_AUDIO_FORMATS)}"
-            )
-        
-        if file_ext not in SUPPORTED_AUDIO_FORMATS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported format: {file_ext}. Supported: {', '.join(SUPPORTED_AUDIO_FORMATS)}"
-            )
-
-        print(f"\n[transcribe] ✓ File format validated: {file_ext}")
-
-        # 2. Save uploaded file to temp
-        suffix = file_ext if file_ext else ".mp3"
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            contents = await file.read()
-            tmp.write(contents)
-            tmp_path = tmp.name
-
-        print(f"[transcribe] Processing: {file.filename} ({len(contents) / 1024 / 1024:.1f}MB)")
-
-        # 3. Transcribe
-        result = stt.transcribe(
-            tmp_path,
-            tgt_lang=tgt_lang,
-            max_duration_sec=max_duration_sec,
-        )
-
-        text = result["text"]
-
-        # 4. Optional Arabic cleaning
-        if clean:
-            print("[transcribe] Applying Arabic text cleaning...")
-            text = clean_arabic_text(text)
-
-        print(f"[transcribe] ✓ Transcription complete\n")
-
-        # 5. Clean up
-        Path(tmp_path).unlink(missing_ok=True)
-
-        return {
-            "status": "success",
-            "text": text,
-            "language": tgt_lang,
-            "duration_sec": result["duration_sec"],
-            "file": file.filename,
-            "file_format": file_ext,
-            "cleaned": clean,
-            "service": "STT - SeamlessM4Tv2 (Egyptian Arabic)"
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        print(f"[transcribe] ERROR: {e}")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
-
-
-# ============================================================================
-# COMBINED WORKFLOW: TRANSCRIBE + PROCESS + QA
-# ============================================================================
-
-@app.post("/api/transcribe_and_process")
-async def transcribe_and_process(
-    audio_file: UploadFile = File(..., description="Audio file for transcription"),
-    document_file: UploadFile | None = File(None, description="Optional: Document for Q&A"),
-    tgt_lang: str = Form("arb", description="Language for transcription"),
-    query: str = Form("", description="Optional: Query for Q&A on document"),
-    clean: bool = Form(True, description="Clean transcribed text"),
-) -> dict:
+async def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
     Advanced workflow:
     1. Transcribe audio file
@@ -288,38 +198,29 @@ async def transcribe_and_process(
     
     This demonstrates integration of STT + RAG systems.
     """
-    
-    # Step 1: Transcribe audio
-    audio_result = await transcribe(
-        file=audio_file,
-        tgt_lang=tgt_lang,
-        clean=clean,
+    result = FULL_ROUTER_CHAIN.invoke(
+        {
+            "user_message": query,
+            "session_id": session_id,
+            "dispatch_action": dispatch_action,
+            "dispatch_query": dispatch_query,
+        }
     )
-    
-    transcript = audio_result["text"]
-    
-    # Step 2: Process document if provided
-    if document_file:
-        await upload_file(document_file)
-    
-    # Step 3: Q&A with context
-    qa_result = None
-    if query and "latest" in uploaded_documents:
-        qa_result = await qa_endpoint(query)
-    
-    return {
-        "status": "success",
-        "workflow": "transcribe_and_process",
-        "transcription": {
-            "text": transcript,
-            "language": tgt_lang,
-            "duration_sec": audio_result["duration_sec"],
-            "file": audio_result["file"],
-            "cleaned": clean,
-        },
-        "qa_result": qa_result,
-        "service": "Integrated STT + RAG"
-    }
+    return result
+# ---------------------------------------------------------------------------- #
+# LearnableUnitsGenerator Endpoint
+# ---------------------------------------------------------------------------- #
+@app.post("/api/learnable_units_generator")
+async def learnable_units_generator(session_id: str = Form(None)):
+    """
+    Generate learnable units using the LearnableUnitsGenerator.
+    """
+    document = uploaded_documents["latest"]
+    summary_result = await summarization_node.process(query=' ', documents=[document])
+    summary_text = str(summary_result)
+    cpa_result = await cpa_agent.process(query=summary_text, document=document)
+    tutor_result = await tutor_agent.process(query=' ', cpa_result=cpa_result, current_query=current_query, previous_query=None)
+    return {"result": tutor_result}
 
 
 # ============================================================================
