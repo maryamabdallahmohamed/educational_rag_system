@@ -1,6 +1,11 @@
-from fastapi import FastAPI, UploadFile, File, Form
+import tempfile
+from pathlib import Path
 from typing import Dict, Any
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+
+# ===== RAG Imports =====
 from backend.core.agents.content_processor_agent import ContentProcessorAgent
 from backend.core.agents.tutor_agent import TutorAgent
 from backend.core.nodes.loader import PDFLoader
@@ -10,6 +15,28 @@ from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
+
+# ===== STT Imports =====
+from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
+from backend.core.stt_dev_seamless.app.utils import clean_arabic_text
+
+# ===== FastAPI Setup =====
+app = FastAPI(
+    title="Integrated Educational API",
+    version="2.0",
+    description="Document Processing + Speech-to-Text (Egyptian Arabic)"
+)
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ===== RAG Components =====
 from backend.api.routers import sessions
 
 app = FastAPI(title="Educational RAG API", version="1.0")
@@ -27,9 +54,56 @@ tutor_agent = TutorAgent()
 uploaded_documents: Dict[str, Any] = {}
 current_query: Dict[str, Any] = {}
 
-# ---------------------------------------------------------------------------- #
-# Upload Document Endpoint
-# ---------------------------------------------------------------------------- #
+# ===== STT Components =====
+stt: SeamlessModel | None = None
+SUPPORTED_AUDIO_FORMATS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".opus"}
+
+
+# ============================================================================
+# STARTUP / SHUTDOWN
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize SeamlessM4Tv2 model on startup."""
+    global stt
+    print("\n[startup] Initializing SeamlessM4Tv2 model...")
+    stt = SeamlessModel(
+        model_name="facebook/seamless-m4t-v2-large",
+        device=-1,  # CPU by default
+    )
+    print("[startup] ✓ Ready to accept requests\n")
+
+
+# ============================================================================
+# HEALTH CHECK
+# ============================================================================
+
+@app.get("/health")
+async def health() -> dict:
+    """
+    Health check endpoint for both RAG and STT systems.
+    
+    Returns status of document processing and speech recognition.
+    """
+    return {
+        "status": "ok",
+        "services": {
+            "rag": "operational",
+            "stt": "operational" if stt and stt.loaded else "initializing",
+        },
+        "stt": {
+            "model_loaded": stt is not None and stt.loaded if stt else False,
+            "model_name": stt.model_name if stt else None,
+            "supported_audio_formats": list(SUPPORTED_AUDIO_FORMATS),
+        }
+    }
+
+
+# ============================================================================
+# DOCUMENT PROCESSING ENDPOINTS
+# ============================================================================
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)):
     """Upload and store a document."""
@@ -37,10 +111,9 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    # Build a LangChain Document instead of raw text
     document = document_loader.load_document(file_path)
     if document is None:
-        return {"error": "Failed to load document."}
+        raise HTTPException(status_code=400, detail="Failed to load document.")
 
     await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
 
@@ -48,22 +121,24 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)
     uploaded_documents["latest"] = document
     uploaded_documents["latest_metadata"] = document.metadata
 
-    return {"status": "uploaded", "filename": file.filename}
+    return {
+        "status": "uploaded",
+        "filename": file.filename,
+        "service": "RAG - Document Processing"
+    }
 
-# ---------------------------------------------------------------------------- #
-# Router Endpoint
-# ---------------------------------------------------------------------------- #
+
 @app.post("/api/router")
 async def route_query(query: str = Form(...)):
     """Route a query to QA or Summarization."""
     routing_result = await router_node(query)
     route = routing_result.lower()
-    return {"decision": route}
+    return {
+        "decision": route,
+        "service": "RAG - Query Router"
+    }
 
 
-# ---------------------------------------------------------------------------- #
-# QA Endpoint
-# ---------------------------------------------------------------------------- #
 @app.post("/api/qa")
 async def qa_endpoint(query: str = Form(...)):
     """Answer questions using the latest uploaded document."""
@@ -72,12 +147,14 @@ async def qa_endpoint(query: str = Form(...)):
     current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await qa_node.process(query=query, documents=[document])
-    return {"query": query, "result": result}
+
+    return {
+        "query": query,
+        "result": result,
+        "service": "RAG - Q&A"
+    }
 
 
-# ---------------------------------------------------------------------------- #
-# Summarization Endpoint
-# ---------------------------------------------------------------------------- #
 @app.post("/api/summarize")
 async def summarize_endpoint(query: str = Form(...)):
     """Summarize the latest uploaded document."""
@@ -86,7 +163,6 @@ async def summarize_endpoint(query: str = Form(...)):
     current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await summarization_node.process(query=query, documents=[document])
-    return {"query": query, "result": result}
 
 
 
@@ -105,13 +181,22 @@ async def tutor_agent_endpoint(query: str = Form(...)):
     tutor_result = await tutor_agent.process(query=query,cpa_result=cpa_result,current_query=current_query,previous_query=previous_query)
     return {"query": query, "result": tutor_result}
 
-# ---------------------------------------------------------------------------- #
-# Action Agent Route Endpoint
-# ---------------------------------------------------------------------------- #
+    return {
+        "query": query,
+        "result": result,
+        "service": "RAG - Content Processor Agent"
+    }
+
+
 @app.post("/api/action_route")
 async def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
-    Route a message using the Action Agent's router chain.
+    Advanced workflow:
+    1. Transcribe audio file
+    2. If document provided: upload and process
+    3. If query provided: answer questions using both transcript and document
+    
+    This demonstrates integration of STT + RAG systems.
     """
     result = FULL_ROUTER_CHAIN.invoke(
         {
@@ -138,10 +223,89 @@ async def learnable_units_generator(session_id: str = Form(None)):
     return {"result": tutor_result}
 
 
+# ============================================================================
+# INTERACTIVE ASSISTANT
+# ============================================================================
 
-# ---------------------------------------------------------------------------- #
-# Health Check
-# ---------------------------------------------------------------------------- #
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+@app.post("/api/assistant")
+async def assistant(
+    message: str = Form(..., description="User message or query"),
+    audio_file: UploadFile | None = File(None, description="Optional audio file"),
+) -> dict:
+    """
+    Smart assistant that:
+    - Processes user message or transcribed audio
+    - Routes to appropriate service (Q&A, summarization, routing)
+    - Returns structured response
+    """
+    
+    # If audio provided, transcribe it first
+    if audio_file:
+        result = await transcribe(file=audio_file)
+        message = result["text"]
+    
+    # Route the message to appropriate service
+    routing = await route_query(message)
+    route = routing["decision"]
+    
+    response = {
+        "message": message,
+        "route": route,
+        "service": "Integrated Assistant"
+    }
+    
+    # Execute based on route
+    if route == "qa":
+        if "latest" in uploaded_documents:
+            qa_result = await qa_endpoint(message)
+            response["result"] = qa_result["result"]
+        else:
+            response["result"] = "No document uploaded. Please upload a document first."
+    
+    elif route == "summarize":
+        if "latest" in uploaded_documents:
+            sum_result = await summarize_endpoint(message)
+            response["result"] = sum_result["result"]
+        else:
+            response["result"] = "No document uploaded. Please upload a document first."
+    
+    else:
+        response["result"] = "Message routed to action agent."
+    
+    return response
+
+
+# ============================================================================
+# ROOT ENDPOINT
+# ============================================================================
+
+@app.get("/")
+async def root():
+    """API information and available endpoints."""
+    return {
+        "title": "Integrated Educational API",
+        "version": "2.0",
+        "description": "Combines RAG + Speech-to-Text",
+        "services": {
+            "RAG": [
+                "/api/upload - Upload PDF",
+                "/api/qa - Answer questions",
+                "/api/summarize - Summarize document",
+                "/api/router - Route queries",
+                "/api/cpa_agent - Content processor",
+            ],
+            "STT": [
+                "/api/transcribe - Transcribe audio",
+            ],
+            "Integrated": [
+                "/api/transcribe_and_process - Transcribe + process",
+                "/api/assistant - Smart assistant",
+            ]
+        },
+        "docs": "/docs"
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
