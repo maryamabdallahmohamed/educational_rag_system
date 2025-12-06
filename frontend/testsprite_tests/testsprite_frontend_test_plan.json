@@ -1,0 +1,383 @@
+[
+  {
+    "id": "TC001",
+    "title": "Document Upload - Supported Formats",
+    "description": "Verify that the Document Upload page accepts all specified file formats (PDF, TXT, DOC, DOCX, MD, JSON) via both drag-and-drop and file selector.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Document Upload page."
+      },
+      {
+        "type": "action",
+        "description": "Drag and drop a valid PDF file into the upload area."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the PDF file upload is accepted and processed with real-time feedback."
+      },
+      {
+        "type": "action",
+        "description": "Use the file selector to upload a valid TXT file."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the TXT file upload is accepted and processed with real-time feedback."
+      },
+      {
+        "type": "action",
+        "description": "Repeat drag-and-drop and file selector upload steps for DOC, DOCX, MD, and JSON files."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify each file format is accepted and processed with feedback."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Document Upload - Unsupported Formats Rejection",
+    "description": "Verify that unsupported file formats are rejected and trigger appropriate error messages during upload.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Document Upload page."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to upload unsupported file formats (e.g., EXE, JPG, MP4) via drag-and-drop and file selector."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm each unsupported file is rejected with a clear real-time error message."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Chat Interface - Real-time Q&A",
+    "description": "Verify that users can submit questions, receive AI-generated answers with loading indicators, and view conversation history with timestamps.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Chat Interface page."
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid question related to an uploaded document in the chat input."
+      },
+      {
+        "type": "action",
+        "description": "Submit the question."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a loading indicator appears while awaiting the AI response."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the AI-generated answer is displayed once ready."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the conversation history includes the question and answer with accurate timestamps."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Chat Interface - Empty or Invalid Question Handling",
+    "description": "Ensure that empty questions or invalid inputs are not submitted and the application prompts the user accordingly.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Chat Interface page."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit an empty chat input."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify submission is blocked and a validation error or toast notification is shown."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit whitespace or only special characters as a question."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify submission is blocked with appropriate user feedback."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "AI Features - Document Summarization",
+    "description": "Test that the automatic document summarization feature generates accurate, concise summaries quickly when triggered.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Upload a multi-page document to the system."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the Chat Interface with the uploaded document active."
+      },
+      {
+        "type": "action",
+        "description": "Trigger the automatic document summarization via the Quick Action tool."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a loading indicator displays while summary is being generated."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the summary is displayed accurately and is concise."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "AI Features - CPA Agent Processing",
+    "description": "Verify CPA Agent processing returns correct processed content and handles errors gracefully.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Upload a compatible document."
+      },
+      {
+        "type": "action",
+        "description": "In the Chat Interface, activate the CPA Agent for content processing."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that CPA Agent returns processed content results."
+      },
+      {
+        "type": "action",
+        "description": "Simulate RAG API failure or timeout when triggering CPA Agent."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the app handles API errors gracefully, displaying helpful messages without crashing."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "UI Accessibility - Keyboard Navigation and Screen Reader Support",
+    "description": "Ensure all UI components, including chat inputs, buttons, menus, and dialogs, are fully operable via keyboard and accessible to screen readers.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate through the application using keyboard only (Tab, Shift+Tab, Enter, Space, Arrow keys)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify focus/state is visible and logical order follows accessibility best practices."
+      },
+      {
+        "type": "action",
+        "description": "Use a screen reader to interact with components such as upload, chat interface, navigation, and dialogs."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that all interactive elements have meaningful labels and are properly announced."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Navigation Bar - Responsiveness and Menu Functionality",
+    "description": "Test that the navigation bar works correctly on desktop and mobile, with responsive menus, smooth scrolling, and active state highlighting.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Load the application on desktop viewport."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify desktop menu is fully visible and functional."
+      },
+      {
+        "type": "action",
+        "description": "Use navigation bar links and verify smooth scrolling to each page section."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the active state indicator updates correctly as user navigates."
+      },
+      {
+        "type": "action",
+        "description": "Resize viewport to mobile dimensions or use a mobile device."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify mobile menu is accessible via hamburger icon and opens/closes correctly."
+      },
+      {
+        "type": "action",
+        "description": "Navigate between pages using the mobile menu."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify smooth transitions and correct active state updates."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Theme Provider - Dark and Light Mode Toggle with Persistence",
+    "description": "Verify seamless toggling between dark and light modes, and that the chosen theme persists across user sessions.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start with default theme loaded."
+      },
+      {
+        "type": "action",
+        "description": "Toggle theme from light to dark mode using the theme toggle control."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify application UI switches to dark mode instantly and is applied across all pages."
+      },
+      {
+        "type": "action",
+        "description": "Reload the application or close and reopen the browser."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the last selected theme (dark) is preserved and loaded correctly."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "RAG API Integration - Successful Document Upload and Query",
+    "description": "Confirm successful interactions with the backend RAG API for document upload and question answering, maintaining session state.",
+    "category": "integration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Upload a supported document through the UI."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that the backend RAG API receives and processes the upload successfully."
+      },
+      {
+        "type": "action",
+        "description": "Ask a question related to the uploaded document via the chat interface."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the RAG API returns a valid answer and session state is maintained."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "RAG API Integration - Error Handling and Retry Mechanism",
+    "description": "Verify that errors from the RAG backend API during document upload or Q&A are handled gracefully with user feedback and offer retry options.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate API failure during document upload."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that a meaningful error message is displayed and upload is not silently dropped."
+      },
+      {
+        "type": "action",
+        "description": "Simulate API failure during chat question submission."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error is communicated to the user with options to retry the request."
+      },
+      {
+        "type": "action",
+        "description": "Retry the failed request."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm successful completion upon retry if API recovers."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Custom Hooks - Mobile Detection Hook Functionality",
+    "description": "Test that the custom mobile detection hook correctly identifies device type and triggers responsive UI behaviors.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the application from mobile and desktop devices or simulate via viewport resizing."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the hook returns correct mobile detection state."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm UI elements adapt appropriately based on the detected device type (e.g., menus, layout)."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Toast Notifications - Display and Dismissal",
+    "description": "Ensure custom toast notifications triggered by hooks display messages correctly and can be dismissed manually or auto-dismiss after a timeout.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger various toast notifications (success, error, info) throughout the app."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that each toast appears with correct content and style."
+      },
+      {
+        "type": "action",
+        "description": "Manually dismiss a toast notification via close button."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the toast disappears immediately."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify non-dismissed toasts auto-dismiss after expected timeout."
+      }
+    ]
+  }
+]
