@@ -219,14 +219,5 @@ logs
 .kiro
 .DS_Store
 .dockerignore
-backend/core/ocr_module./Qari_model_cache
-backend/core/ocr_module./Qwen_processor_cache
-.git
-__pycache__/
-*.pyc
-*.log
-node_modules/
-.env
-*.sqlite
-*.csv
-*.pkl
+backend/core/ocr_module/Qari_model_cache
+backend/core/ocr_module/Qwen_processor_cache
