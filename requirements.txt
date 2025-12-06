@@ -25,3 +25,4 @@ SQLAlchemy==2.0.43
 tomli==2.0.1
 torch==2.8.0
 uvicorn==0.30.0
+

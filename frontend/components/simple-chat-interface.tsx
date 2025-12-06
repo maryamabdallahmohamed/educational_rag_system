@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Sparkles, Send } from "lucide-react";
+import { FileText, Sparkles, Send, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { useRAGApi } from "@/hooks/use-rag-api";
@@ -126,6 +126,11 @@ export function SimpleChatInterface() {
             };
             setMessages((prev) => [...prev, errorMessage]);
         }
+    };
+
+    const handleLuAction = () => {
+        console.log("Lu action triggered");
+        // TODO: Implement Lu action
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -270,7 +275,7 @@ export function SimpleChatInterface() {
             <div className="flex-shrink-0 border-t border-white/5 bg-[#050505] p-3 md:p-4">
                 <div className="max-w-4xl mx-auto w-full">
                     {/* Action Bar */}
-                    <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 scrollbar-hide">
+                    <div className="flex items-center gap-1.5 mb-2 flex-wrap pb-1">
                         <Button
                             onClick={handleSummarize}
                             disabled={isLoading}
@@ -290,6 +295,16 @@ export function SimpleChatInterface() {
                         >
                             <Sparkles className="h-3 w-3 mr-1.5 text-purple-400" />
                             Run CPA Agent
+                        </Button>
+                        <Button
+                            onClick={handleLuAction}
+                            disabled={isLoading}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full border-white/10 bg-[#1A1A1A]/80 hover:bg-white/10 text-zinc-300 hover:text-white text-xs backdrop-blur-md transition-all"
+                        >
+                            <Zap className="h-3 w-3 mr-1.5 text-yellow-400" />
+                            lu
                         </Button>
                     </div>
 
