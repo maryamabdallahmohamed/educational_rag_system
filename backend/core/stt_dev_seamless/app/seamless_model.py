@@ -14,13 +14,12 @@ import torch
 import torchaudio
 import numpy as np
 from typing import TYPE_CHECKING
-
+from backend.config import DEVICE
 if TYPE_CHECKING:
     from transformers import AutoProcessor, SeamlessM4Tv2Model
 
 from transformers import AutoProcessor, SeamlessM4Tv2Model
 from huggingface_hub import snapshot_download
-
 
 def ensure_model_downloaded(
     model_name: str, cache_dir: str | None = None
@@ -51,7 +50,7 @@ class SeamlessModel:
         """
         print("[Seamless] Loading SeamlessM4T v2 model...")
         self.model_name = model_name
-        self.device = device
+        self.device = DEVICE
         self.cache_dir = cache_dir
         self.loaded = False
         self.processor = None
@@ -63,25 +62,16 @@ class SeamlessModel:
         """Load model with progress."""
         ensure_model_downloaded(self.model_name, cache_dir=self.cache_dir)
 
-        device_str = (
-            f"cuda:{self.device}"
-            if self.device >= 0
-            else "cpu"
-        )
-        print(f"[model] Loading processor & model (device={device_str})...")
+
+        print(f"[model] Loading processor & model (device={DEVICE})...")
 
         self.processor = AutoProcessor.from_pretrained(
-            self.model_name, cache_dir=self.cache_dir
+            self.model_name, cache_dir=self.cache_dir, use_fast=False
         )
         self.model = SeamlessM4Tv2Model.from_pretrained(
             self.model_name, cache_dir=self.cache_dir
         )
-
-        if self.device >= 0:
-            self.model = self.model.to(f"cuda:{self.device}")  # type: ignore
-        else:
-            self.model = self.model.to("cpu")  # type: ignore
-
+        self.model.to(self.device)
         self.loaded = True
         print("[Seamless] ✓ Model loaded successfully.")
 
@@ -184,13 +174,13 @@ class SeamlessModel:
         # Prepare for inference
         print("[inference] Preparing inputs...")
         inputs = self.processor(  # type: ignore
-            waveform,
+            audios=waveform,
             sampling_rate=16000,
             return_tensors="pt",
         )
 
         # Move to device
-        device_obj = f"cuda:{self.device}" if self.device >= 0 else "cpu"
+        device_obj = torch.device(self.device)
         inputs = inputs.to(device_obj)
 
         # One-shot inference
@@ -199,7 +189,11 @@ class SeamlessModel:
             output = self.model.generate(**inputs, tgt_lang=tgt_lang)  # type: ignore
 
         # Decode
-        text = self.processor.decode(output[0], skip_special_tokens=True)  # type: ignore
+        print(f"[inference] Output shape: {output}")
+        # SeamlessM4T returns a GenerateOutput object or tuple-like structure
+        token_ids = output.sequences if hasattr(output, "sequences") else output[0]
+        text = self.processor.batch_decode( token_ids, skip_special_tokens=True)[0]
+
         print(f"[inference] ✓ Complete. Result length: {len(text)} chars")
 
         return {

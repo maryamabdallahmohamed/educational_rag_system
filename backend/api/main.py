@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 import asyncio
+import os
 
 # ===== RAG Imports =====
 from backend.core.agents.content_processor_agent import ContentProcessorAgent
@@ -19,6 +21,7 @@ from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
 # ===== STT Imports =====
 from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
 from backend.core.stt_dev_seamless.app.utils import clean_arabic_text
+from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
 
 # ===== FastAPI Setup =====
 app = FastAPI(
@@ -50,6 +53,7 @@ qa_node = QANode()
 summarization_node = SummarizationNode()
 cpa_agent = ContentProcessorAgent()
 tutor_agent = TutorAgent()
+seamless_model = SeamlessModel()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
 current_query: Dict[str, Any] = {}
@@ -241,8 +245,21 @@ async def assistant(
     
     # If audio provided, transcribe it first
     if audio_file:
-        result = await transcribe(file=audio_file)
-        message = result["text"]
+        # Create a temporary file to store the uploaded audio
+        suffix = Path(audio_file.filename).suffix if audio_file.filename else ".tmp"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            content = await audio_file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+
+        try:
+            # Run the synchronous transcribe method in a threadpool
+            result = await run_in_threadpool(seamless_model.transcribe, audio_path=tmp_path)
+            message = result["text"]
+        finally:
+            # Clean up the temporary file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
     
     # Route the message to appropriate service
     routing = await route_query(message)
