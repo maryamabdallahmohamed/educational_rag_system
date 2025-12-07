@@ -233,63 +233,53 @@ async def learnable_units_generator(session_id: str = Form(None)):
 
 @app.post("/api/assistant")
 async def assistant(
-    message: str = Form(..., description="User message or query"),
-    audio_file: UploadFile | None = File(None, description="Optional audio file"),
+    session_id: str = Form(None),
+    message: str | None = Form(None, description="Optional user message or query"),
+    audio_file: UploadFile | None = File(None, description="Optional audio file")
 ) -> dict:
     """
-    Smart assistant that:
+    Smart assistant:
     - Processes user message or transcribed audio
-    - Routes to appropriate service (Q&A, summarization, routing)
-    - Returns structured response
+    - Routes to appropriate service
     """
-    
-    # If audio provided, transcribe it first
+
+    # If audio provided, transcribe it
     if audio_file:
-        # Create a temporary file to store the uploaded audio
-        suffix = Path(audio_file.filename).suffix if audio_file.filename else ".tmp"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-            content = await audio_file.read()
-            tmp_file.write(content)
-            tmp_path = tmp_file.name
+        suffix = Path(audio_file.filename or "audio.tmp").suffix
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(await audio_file.read())
+            tmp_path = tmp.name
 
         try:
-            # Run the synchronous transcribe method in a threadpool
-            result = await run_in_threadpool(seamless_model.transcribe, audio_path=tmp_path)
-            message = result["text"]
+            audio_result = await run_in_threadpool(
+                seamless_model.transcribe,
+                audio_path=tmp_path
+            )
+            message = audio_result.get("text", "")
         finally:
-            # Clean up the temporary file
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-    
-    # Route the message to appropriate service
-    routing = await route_query(message)
-    route = routing["decision"]
-    
-    response = {
+
+
+    # Route the message
+    routing = FULL_ROUTER_CHAIN.invoke(
+        {
+            "user_message": message,
+            "session_id": session_id,
+            "dispatch_action": dispatch_action,
+            "dispatch_query": dispatch_query,
+        }
+    )
+
+    route = routing.get("dispatch_action") or routing.get("dispatch_query")
+
+    return {
         "message": message,
         "route": route,
         "service": "Integrated Assistant"
     }
-    
-    # Execute based on route
-    if route == "qa":
-        if "latest" in uploaded_documents:
-            qa_result = await qa_endpoint(message)
-            response["result"] = qa_result["result"]
-        else:
-            response["result"] = "No document uploaded. Please upload a document first."
-    
-    elif route == "summarize":
-        if "latest" in uploaded_documents:
-            sum_result = await summarize_endpoint(message)
-            response["result"] = sum_result["result"]
-        else:
-            response["result"] = "No document uploaded. Please upload a document first."
-    
-    else:
-        response["result"] = "Message routed to action agent."
-    
-    return response
+
 
 
 # ============================================================================
