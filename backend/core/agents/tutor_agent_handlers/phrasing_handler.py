@@ -1,5 +1,5 @@
 from langchain_core.tools import Tool
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from backend.core.agents.base_handler import BaseHandler
 from backend.models.llms.groq_llm import GroqLLM

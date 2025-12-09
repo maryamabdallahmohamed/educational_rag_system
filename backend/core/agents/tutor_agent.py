@@ -1,5 +1,6 @@
 from typing import List
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents import create_agent
+from langchain_classic.agents import AgentExecutor
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
 from backend.models.llms.groq_llm import GroqLLM
@@ -41,10 +42,10 @@ class TutorAgent:
             input_variables=["input","result", "tools", "tool_names", "agent_scratchpad", "previous_query", "current_query"]
         )
 
-        agent = create_react_agent(
-            llm=self.llm,
+        agent = create_agent(
+            model=self.llm,
             tools=self.tools,
-            prompt=prompt
+            system_prompt=str(prompt)
         )
 
         return AgentExecutor(

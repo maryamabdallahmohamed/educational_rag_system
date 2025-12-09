@@ -1,5 +1,5 @@
 # backend/core/nodes/summarization_node.py
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 from backend.utils.logger_config import get_logger
 from backend.core.states.graph_states import RAGState, Summary

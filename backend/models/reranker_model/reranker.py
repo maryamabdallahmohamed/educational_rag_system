@@ -3,7 +3,7 @@ import logging as logger
 from typing import List
 from backend.config import CACHE_DIR
 from backend.core.builders.document_builder import DocumentBuilder
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 class Reranker:
     def __init__(self, model_name: str = None):

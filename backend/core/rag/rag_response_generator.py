@@ -1,7 +1,7 @@
 from typing import Dict, Any, Union
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser, PydanticOutputParser
-from langchain.memory import ConversationBufferWindowMemory
+from langchain_classic.memory import ConversationBufferMemory
 from backend.models.llms.groq_llm import GroqLLM
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import LearningUnit
@@ -20,7 +20,7 @@ class RAGResponseGenerator:
         self.use_learning_unit = use_learning_unit
 
         # Memory for conversation history
-        self.memory = ConversationBufferWindowMemory(
+        self.memory = ConversationBufferMemory(
             k=50,
             return_messages=True
         )

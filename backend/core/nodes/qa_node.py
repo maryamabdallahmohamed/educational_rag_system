@@ -3,7 +3,7 @@ import asyncio
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from backend.models.llms.groq_llm import GroqLLM
 from backend.core.states.graph_states import QAResponse
 from backend.database.repositories.qa_repo import QuestionAnswerRepository
