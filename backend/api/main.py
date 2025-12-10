@@ -153,9 +153,7 @@ async def qa_endpoint(query: str = Form(...)):
     result = await qa_node.process(query=query, documents=[document])
 
     return {
-        "query": query,
-        "result": result,
-        "service": "RAG - Q&A"
+        "result": result
     }
 
 
@@ -167,6 +165,9 @@ async def summarize_endpoint(query: str = Form(...)):
     current_query["latest"] = query
     document = uploaded_documents["latest"]
     result = await summarization_node.process(query=query, documents=[document])
+    return {
+        "result": result,
+    }
 
 
 
