@@ -127,7 +127,14 @@ class TutorAgent:
             answer = output.get("output", "I couldn't process your request.")
             scratchpad = output.get("agent_scratchpad", "")
             tools_used = self.scratchpad_parser(scratchpad)
-            self.current_state["answer"] = answer
+            logger.debug(f"Type of answer: {type(answer)}, Type of current_state['answer']: {type(self.current_state.get('answer'))}")
+            if isinstance(self.current_state.get("answer"), dict) and isinstance(answer, dict):
+                try:
+                    self.current_state["answer"].update(answer)
+                except Exception as e:
+                    logger.error(f"Error while updating dictionaries: {e}")
+            else:
+                self.current_state["answer"] = answer
             await self._save_db(query,cpa_result, answer, tools_used)
             logger.info("TutorAgent: Execution complete.")
 
