@@ -10,10 +10,10 @@ import json
 from typing import Dict, Any
 
 from backend.core.action_agent.prompts import SUBACTION_ROUTER_PROMPT
-from backend.models.llms.groq_llm import GroqLLM  # adjust path if needed
+from backend.models.llms.ollama_llm import OllamaLLM  
 
 # Shared LLM wrapper instance
-_llm_wrapper = GroqLLM()
+_llm_wrapper = OllamaLLM()
 
 JSON_BLOCK_REGEX = re.compile(r"\{.*\}", re.DOTALL)
 

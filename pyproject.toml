@@ -23,6 +23,7 @@ dependencies = [
     "langchain-classic>=1.0.0",
     "langchain-community==0.3.29",
     "langchain-groq>=1.1.0",
+    "langchain-ollama>=1.0.0",
     "langchain-openai>=1.1.1",
     "langdetect==1.0.9",
     "matplotlib==3.10.7",

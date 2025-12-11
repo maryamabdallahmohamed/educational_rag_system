@@ -9,14 +9,14 @@ class OllamaLLM(BaseLLM):
 
     def __init__(
         self,
-        model: str = "qwen3-vl:235b-cloud",
+        model: str = 'qwen3-vl:235b-instruct-cloud',
         temperature: float = 0,
         api_key: str = None,
         base_url: str = None,
         timeout: int = 120
     ):
         api_key = api_key or os.getenv("OLLAMA_API_KEY")
-        base_url = "https://ollama.com"
+        base_url = os.getenv("OLLAMA_BASE_URL")
 
         self.llm = ChatOllama(
             model=model,
@@ -29,3 +29,9 @@ class OllamaLLM(BaseLLM):
     def invoke(self, messages: List[dict]) -> str:
         ai_msg = self.llm.invoke(messages)
         return ai_msg.content
+
+
+if __name__ == "__main__":
+    llm = OllamaLLM()
+    response = llm.invoke([{"role": "user", "content": "Hello, how are you?"}])
+    print(response) 

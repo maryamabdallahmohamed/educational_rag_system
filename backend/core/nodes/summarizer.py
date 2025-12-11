@@ -1,6 +1,6 @@
 # backend/core/nodes/summarization_node.py
 from langchain_core.prompts import ChatPromptTemplate
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.utils.logger_config import get_logger
 from backend.core.states.graph_states import RAGState, Summary
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
@@ -22,7 +22,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         if getattr(self, "_initialized", False):
             return
         self.logger = get_logger("summarization_node")
-        llm_wrapper = GroqLLM()
+        llm_wrapper = OllamaLLM()
         self.llm = llm_wrapper.llm
         
         # Setup JSON output parser
