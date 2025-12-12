@@ -15,8 +15,8 @@ from backend.core.nodes.chunk_store import ChunkAndStoreNode
 from backend.core.nodes.qa_node import QANode
 from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
-from backend.core.action_agent.handlers.dispatchers import dispatch_action, dispatch_query
-from backend.core.action_agent.chains import FULL_ROUTER_CHAIN
+from backend.core.action_agent.handlers.dispatchers import dispatch_action, init_dispatchers
+from backend.core.action_agent.chains import FULL_ROUTER_CHAIN, full_router_async
 
 # ===== STT Imports =====
 from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
@@ -71,6 +71,18 @@ SUPPORTED_AUDIO_FORMATS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".op
 async def startup_event():
     """Initialize SeamlessM4Tv2 model on startup."""
     global stt
+    
+    # Initialize dispatchers with shared instances
+    init_dispatchers(
+        qa_node=qa_node,
+        summarization_node=summarization_node,
+        cpa_agent=cpa_agent,
+        tutor_agent=tutor_agent,
+        uploaded_documents=uploaded_documents,
+        current_query=current_query
+    )
+    print("[startup] ✓ Dispatchers initialized")
+    
     print("\n[startup] Initializing SeamlessM4Tv2 model...")
     stt = SeamlessModel(
         model_name="facebook/seamless-m4t-v2-large",
@@ -183,12 +195,15 @@ async def tutor_agent_endpoint(query: str = Form(...)):
     current_query["latest"] = query
     document = uploaded_documents["latest"]
     cpa_result = await cpa_agent.process(query=query, document=document)
-    tutor_result = await tutor_agent.process(query=query,cpa_result=cpa_result,current_query=current_query,previous_query=previous_query)
-    return {"query": query, "result": tutor_result}
-
+    tutor_result = await tutor_agent.process(
+        query=query,
+        cpa_result=cpa_result,
+        current_query=current_query,
+        previous_query=previous_query
+    )
     return {
         "query": query,
-        "result": result,
+        "result": tutor_result,
         "service": "RAG - Content Processor Agent"
     }
 
@@ -196,19 +211,16 @@ async def tutor_agent_endpoint(query: str = Form(...)):
 @app.post("/api/action_route")
 async def route_message(query: str = Form(...), session_id: str = Form(None)):
     """
-    Advanced workflow:
-    1. Transcribe audio file
-    2. If document provided: upload and process
-    3. If query provided: answer questions using both transcript and document
-    
-    This demonstrates integration of STT + RAG systems.
+    Smart routing endpoint:
+    1. Classifies intent (query vs action)
+    2. Routes to appropriate handler
+    3. Executes and returns result
     """
-    result = FULL_ROUTER_CHAIN.invoke(
+    result = await full_router_async(
         {
             "user_message": query,
             "session_id": session_id,
             "dispatch_action": dispatch_action,
-            "dispatch_query": dispatch_query,
         }
     )
     return result
@@ -289,21 +301,19 @@ async def assistant(
                 os.remove(tmp_path)
 
 
-    # Route the message
-    routing = FULL_ROUTER_CHAIN.invoke(
+    # Route the message using async router
+    result = await full_router_async(
         {
             "user_message": message,
             "session_id": session_id,
             "dispatch_action": dispatch_action,
-            "dispatch_query": dispatch_query,
         }
     )
 
-    route = routing.get("dispatch_action") or routing.get("dispatch_query")
-
     return {
         "message": message,
-        "route": route,
+        "route": result.get("query_route") or result.get("action_route"),
+        "result": result.get("dispatch_result"),
         "service": "Integrated Assistant"
     }
 

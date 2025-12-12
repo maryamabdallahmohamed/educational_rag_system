@@ -169,20 +169,20 @@ You are a query router. Classify queries into ONE type.
    - English: summarize, main points, overview, key takeaways
    - Typos: summerzie, summrize → still "summarization"
 
-3. **"content_processor_agent"** - Explanation/Discussion:
+3. **"agents"** - Explanation/Discussion:
    - Arabic: اشرح، وضح، يعني ايه، مش فاهم، ازاي
    - English: explain, clarify, what is, I don't understand, how
 
 **DETECTION RULES:**
 - "اختبرني" / "test me" → qa
 - "لخص" / "summarize" (even with typos) → summarization  
-- "اشرح" / "explain" → content_processor_agent
-- "يعني ايه" / "what is" → content_processor_agent
-- Default when uncertain → content_processor_agent
+- "اشرح" / "explain" → agents
+- "يعني ايه" / "what is" → agents
+- Default when uncertain → agents
 
 Return JSON:
 {
-    "route": "qa" | "summarization" | "content_processor_agent",
+    "route": "qa" | "summarization" | "agents",
     "route_confidence": float (0-1),
     "route_details": "brief reasoning"
 }
@@ -195,7 +195,7 @@ User: لخص الفصل
 {"route":"summarization","route_confidence":0.99,"route_details":"طلب تلخيص (summary request)."}
 
 User: اشرح الفصل الثاني
-{"route":"content_processor_agent","route_confidence":0.98,"route_details":"طلب شرح (explanation request)."}
+{"route":"agents","route_confidence":0.98,"route_details":"طلب شرح (explanation request)."}
 
 User: test my understanding
 {"route":"qa","route_confidence":0.98,"route_details":"Knowledge test request (Q&A)."}
@@ -204,7 +204,7 @@ User: summerzie this
 {"route":"summarization","route_confidence":0.95,"route_details":"Summary request (typo detected)."}
 
 User: what is quantum physics
-{"route":"content_processor_agent","route_confidence":0.97,"route_details":"Definition/explanation request."}
+{"route":"agents","route_confidence":0.97,"route_details":"Definition/explanation request."}
 
 User: {user_message}
 Respond ONLY with JSON.
