@@ -1,8 +1,5 @@
-from typing import List
 from langchain.agents import create_agent
-from langchain_core.prompts import PromptTemplate
-from langchain_core.tools import Tool
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.core.agents.tutor_agent_handlers.phrasing_handler import PhrasingInfoHandler
 from backend.core.agents.tutor_agent_handlers.adaptive_handler import AdaptiveHandler
 from backend.utils.logger_config import get_logger
@@ -17,7 +14,7 @@ class TutorAgent:
     """Tutor Agent responsible for phrasing/simplification tasks for students."""
 
     def __init__(self):
-        self.llm = GroqLLM().llm
+        self.llm = OllamaLLM().llm
         self.current_state = {}
 
         # Register handlers & tools

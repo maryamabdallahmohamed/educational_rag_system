@@ -2,7 +2,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.tools import Tool
 from backend.core.agents.base_handler import BaseHandler
-from backend.core.states.graph_states import RAGState, LearningUnit
+from backend.core.states.graph_states import LearningUnit
 from backend.models.llms.groq_llm import GroqLLM
 from backend.utils.helpers.language_detection import returnlang
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
@@ -193,13 +193,35 @@ class ExplainableUnitsHandler(BaseHandler):
             # Use ainvoke instead of invoke for async execution
             result = await self.unit_generation_chain.ainvoke(chain_input)
 
+            # Handle None result from LLM
+            if result is None:
+                self.logger.warning("LLM returned None, creating fallback unit")
+                return [{
+                    "title": metadata.get("subject", "Learning Unit"),
+                    "subtopics": [],
+                    "detailed_explanation": content[:1000] if content else "Content not available",
+                    "key_points": ["Generated from document content"],
+                    "difficulty_level": "medium",
+                    "learning_objectives": ["Understand the main concepts"],
+                    "keywords": []
+                }]
+
             # Handle both single unit and array responses
             if isinstance(result, list):
                 return result
             elif isinstance(result, dict):
                 return [result]
             else:
-                raise ValueError(f"Unexpected result type: {type(result)}")
+                self.logger.warning(f"Unexpected result type: {type(result)}, creating fallback")
+                return [{
+                    "title": metadata.get("subject", "Learning Unit"),
+                    "subtopics": [],
+                    "detailed_explanation": str(result)[:1000] if result else "Content not available",
+                    "key_points": ["Generated from document content"],
+                    "difficulty_level": "medium",
+                    "learning_objectives": ["Understand the main concepts"],
+                    "keywords": []
+                }]
 
         except Exception as e:
             self.logger.error(f"Error generating units: {e}")

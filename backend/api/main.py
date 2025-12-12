@@ -222,10 +222,36 @@ async def learnable_units_generator(session_id: str = Form(None)):
     """
     document = uploaded_documents["latest"]
     summary_result = await summarization_node.process(query=' ', documents=[document])
-    summary_text = str(summary_result)
+    
+    # Extract text properly from the summary result dict
+    if isinstance(summary_result, dict):
+        # Build a proper query from the summary components
+        title = summary_result.get('title', '')
+        content = summary_result.get('content', '')
+        key_points = summary_result.get('key_points', [])
+        
+        # Combine into a meaningful query string
+        if key_points and isinstance(key_points, list):
+            key_points_text = "\n".join(f"- {point}" for point in key_points)
+        else:
+            key_points_text = ""
+        
+        summary_text = f"{title}\n\n{content}\n\nKey Points:\n{key_points_text}"
+    else:
+        summary_text = str(summary_result) if summary_result else "Generate learning units from the document"
+    
     cpa_result = await cpa_agent.process(query=summary_text, document=document)
-    tutor_result = await tutor_agent.process(query=' ', cpa_result=cpa_result, current_query=current_query, previous_query=None)
-    return {"result": tutor_result}
+    
+
+    tutor_query = "Present this in a learnable units format."
+    tutor_result = await tutor_agent.process(
+        query=tutor_query, 
+        cpa_result=cpa_result, 
+        current_query=current_query, 
+        previous_query=None
+    )
+    print("Result:", tutor_result)
+    return {'result': tutor_result}
 
 
 # ============================================================================
