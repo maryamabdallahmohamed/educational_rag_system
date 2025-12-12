@@ -9,7 +9,7 @@ class OllamaLLM(BaseLLM):
 
     def __init__(
         self,
-        model: str = 'qwen3-vl:235b-instruct-cloud',
+        model: str = 'gpt-oss:120b-cloud',
         temperature: float = 0,
         api_key: str = None,
         base_url: str = None,

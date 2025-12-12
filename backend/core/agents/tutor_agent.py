@@ -127,25 +127,14 @@ class TutorAgent:
             answer = output.get("output", "I couldn't process your request.")
             scratchpad = output.get("agent_scratchpad", "")
             tools_used = self.scratchpad_parser(scratchpad)
-            logger.debug(f"Type of answer: {type(answer)}, Type of current_state['answer']: {type(self.current_state.get('answer'))}")
-            if isinstance(self.current_state.get("answer"), dict) and isinstance(answer, dict):
-                try:
-                    self.current_state["answer"].update(answer)
-                except Exception as e:
-                    logger.error(f"Error while updating dictionaries: {e}")
-            else:
-                self.current_state["answer"] = answer
+            self.current_state["answer"] = answer
             await self._save_db(query,cpa_result, answer, tools_used)
             logger.info("TutorAgent: Execution complete.")
 
-            return self.current_state   
-
+            return self.current_state    
         except Exception as e:
-            logger.error(f"TutorAgent processing error: {e}")
-            return {"answer": f"Error: {str(e)}"}
-
-        finally:
-            self._clear_handler_states()
+            logger.error(f"Error processing query: {e}")
+            return "I couldn't process your request."
 
     def _set_handler_states(self, state):
         for handler in self.handlers:
