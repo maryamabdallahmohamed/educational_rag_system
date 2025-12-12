@@ -1,6 +1,5 @@
 from typing import List
 from langchain.agents import create_agent
-from langchain_classic.agents import AgentExecutor
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
 from backend.models.llms.groq_llm import GroqLLM
@@ -24,38 +23,24 @@ class TutorAgent:
         # Register handlers & tools
         self.handlers = [PhrasingInfoHandler(), AdaptiveHandler()]
         self.tools = [handler.tool() for handler in self.handlers]
+        self.prompt_template = PromptLoader.load_system_prompt("prompts/tutor_agent.yaml")
 
         for tool in self.tools:
             logger.info(f"Loaded tool: {tool.name}")
 
-        self.agent_executor = self._create_agent()
+        self.agent = self._create_agent()
 
     # ----------------------------------------------------------------------
     # Agent Creation
     # ----------------------------------------------------------------------
-    def _create_agent(self) -> AgentExecutor:
-        """Create the ReAct agent with fallback prompt."""
-            
-        prompt_template = PromptLoader.load_system_prompt("prompts/tutor_agent.yaml")
-        prompt = PromptTemplate(
-            template=prompt_template,
-            input_variables=["input","result", "tools", "tool_names", "agent_scratchpad", "previous_query", "current_query"]
-        )
-
+    def _create_agent(self):
         agent = create_agent(
             model=self.llm,
             tools=self.tools,
-            system_prompt=str(prompt)
+            system_prompt=self.prompt_template,
+            debug=True
         )
-
-        return AgentExecutor(
-                    agent=agent,
-                    tools=self.tools,
-                    verbose=True,
-                    max_iterations=5,
-                    handle_parsing_errors=self._handle_error,
-                    max_execution_time=800
-                )
+        return agent
 
     def _handle_error(self, error) -> str:
         """
@@ -116,17 +101,30 @@ class TutorAgent:
                 self._set_handler_states(cpa_result)
 
             logger.info("TutorAgent: Executing query...")
-            tool_names = [tool.name for tool in self.tools]
-            output = await self.agent_executor.ainvoke({
-                "input": query,
-                "result": cpa_result,
-                "previous_query": previous_query,
-                "current_query": query,
-                "agent_scratchpad": ""
+            
+            # Build the message with context
+            context_parts = [f"User query: {query}"]
+            if cpa_result:
+                context_parts.append(f"CPA Result: {cpa_result}")
+            if previous_query:
+                context_parts.append(f"Previous query: {previous_query}")
+            
+            message_content = "\n\n".join(context_parts)
+            
+            output = await self.agent.ainvoke({
+                "messages": [{"role": "user", "content": message_content}]
             })
-            answer = output.get("output", "I couldn't process your request.")
-            scratchpad = output.get("agent_scratchpad", "")
-            tools_used = self.scratchpad_parser(scratchpad)
+            
+            # Parse response from LangGraph agent
+            if "messages" in output and output["messages"]:
+                last_msg = output["messages"][-1]
+                answer = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+            elif "output" in output:
+                answer = output["output"]
+            else:
+                answer = "I couldn't process your request."
+            
+            tools_used = []  # LangGraph doesn't use scratchpad the same way
             self.current_state["answer"] = answer
             await self._save_db(query,cpa_result, answer, tools_used)
             logger.info("TutorAgent: Execution complete.")
