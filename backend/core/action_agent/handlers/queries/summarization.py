@@ -121,10 +121,7 @@ class SummarizationNode(metaclass=SingletonMeta):
             
             # Create the summary record
             summary_record = await repo.create(
-                title=title,
-                content=content,
-                key_points=key_points,
-                language=language
+                content=content
             )
             
             # Commit the transaction

@@ -12,7 +12,7 @@ class SummaryRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
     
-    async def create(self,content: str) -> SummaryRecord:
+    async def create(self, content: str) -> SummaryRecord:
         """Create a new summary record."""
         summary = SummaryRecord(content=content)
         self.session.add(summary)
