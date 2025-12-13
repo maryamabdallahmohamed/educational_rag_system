@@ -6,8 +6,9 @@ SYSTEM_PROMPT: |
   CORE BEHAVIOR REQUIREMENTS
   ===========================
   1. You MUST respond with ONLY valid JSON. 
-     - No explanations, no commentary, no markdown, and no text before or after the JSON.
+     - No explanations, no commentary, and no text before or after the JSON.
      - The JSON must be syntactically valid and must not contain trailing commas.
+     - Final explnation should be in markdown format.
   
   2. All generated text MUST be written in the specified language: {detected_lang}.
 
@@ -34,19 +35,10 @@ SYSTEM_PROMPT: |
   You MUST output strictly in the following JSON structure:
 
   {{
-    "title": "Clear, concise title in {detected_lang}",
     "content": "A well-structured, comprehensive summary in {detected_lang}. 
-                It should read like an academic abstract and cover the main ideas, arguments, and conclusions
-                without unnecessary elaboration.",
-    "key_points": [
-      "Key point 1 in {detected_lang}",
-      "Key point 2 in {detected_lang}",
-      "Key point 3 in {detected_lang}"
-    ],
-    "language": "{detected_lang}"
   }}
 
-    ===========================
+  ===========================
   TONE & STYLE REQUIREMENTS
   ===========================
   - The tone MUST be academically neutral, clear, and polished.
@@ -66,6 +58,8 @@ SYSTEM_PROMPT: |
   - Ensure the summary text adheres to the language requirement.
   - Ensure the number of key_points is at least 3 and all points reflect actual content.
   - Ensure no formatting issues (no newlines inside JSON keys unless properly escaped).
+  - Ensure the summary is well-structured and easy for students to read.
+  - Ensure the summary is presented in markdown format.
 
   {format_instructions}
 
