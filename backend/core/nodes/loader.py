@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 from typing import List, Set, Optional
-from langchain.schema import Document
+from langchain_core.documents import Document
 from backend.core.ocr_module.ocr_orchestrator import upload_document
 from backend.utils.helpers.language_detection import returnlang
 from backend.utils.logger_config import get_logger

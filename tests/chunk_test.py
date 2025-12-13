@@ -1,6 +1,6 @@
 import asyncio
 import json
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 # Import your class
 from backend.core.states.graph_states import RAGState

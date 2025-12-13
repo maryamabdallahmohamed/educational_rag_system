@@ -1,10 +1,9 @@
 from langchain_core.tools import Tool
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from backend.core.agents.base_handler import BaseHandler
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 import json
-
 class PhrasingInfoHandler(BaseHandler):
     """
     Simplified handler to extract educational content from any dict input
@@ -13,7 +12,7 @@ class PhrasingInfoHandler(BaseHandler):
 
     def __init__(self):
         super().__init__()
-        self.llm = GroqLLM().llm
+        self.llm = OllamaLLM().llm
         self.parser = StrOutputParser()
 
         self.base_prompt = PromptTemplate(

@@ -1,5 +1,5 @@
 from typing import List
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents import AgentExecutor, create_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
 from backend.models.llms.groq_llm import GroqLLM
@@ -53,8 +53,8 @@ class ContentProcessorAgent:
         )
 
         # Create ReAct agent
-        agent = create_react_agent(
-            llm=self.llm,
+        agent = create_agent(
+            model=self.llm,
             tools=self.tools,
             prompt=prompt
         )

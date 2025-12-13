@@ -1,5 +1,5 @@
 from typing import List
-from langchain.schema import Document
+from langchain_core.documents import Document
 from backend.models.embedders.hf_embedder import HFEmbedder
 from backend.database.repositories.chunk_repo import ChunkRepository
 from backend.database.db import NeonDatabase

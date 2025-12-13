@@ -1,4 +1,4 @@
-from langchain.schema import Document
+from langchain_core.documents import Document
 import json
 from backend.loaders.document_loaders.text_splitter import document_chunk
 from backend.utils.logger_config import get_logger

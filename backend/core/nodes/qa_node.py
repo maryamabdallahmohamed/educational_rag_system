@@ -3,8 +3,8 @@ import asyncio
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import ChatPromptTemplate
-from backend.models.llms.groq_llm import GroqLLM
+from langchain_core.prompts import ChatPromptTemplate
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.core.states.graph_states import QAResponse
 from backend.database.repositories.qa_repo import QuestionAnswerRepository
 from backend.database.repositories.qa_item_repo import QuestionAnswerItemRepository
@@ -18,7 +18,7 @@ class QANode(metaclass=SingletonMeta):
         if getattr(self, "_initialized", False):
             return
         self.logger = get_logger("qa_node")
-        self.llm = GroqLLM()
+        self.llm = OllamaLLM()
         self.default_question_count = default_question_count
         self.parser = JsonOutputParser(pydantic_object=QAResponse)
 

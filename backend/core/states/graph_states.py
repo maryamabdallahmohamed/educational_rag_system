@@ -1,6 +1,6 @@
 from typing_extensions import TypedDict,List
 from typing import Optional
-from langchain.schema import Document
+from langchain_core.documents import Document
 from pydantic import BaseModel,Field
 
 
