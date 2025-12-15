@@ -35,17 +35,6 @@ class cpa_processor_state(TypedDict, total=False):
     tool_used: str
 
 
-
-class QAPair(BaseModel):
-    question: str = Field(description="A question about the content")
-    answer: str = Field(description="The answer to the question")
-    generated_difficulty: str = Field(description="easy, medium, or hard")
-
-
-class QAResponse(BaseModel):
-    qa_pairs: List[QAPair] = Field(description="List of Q&A pairs generated from the content")
-    total_questions: int = Field(description="Total number of questions generated")
-
 class RouterOutput(BaseModel):
     route: str = Field(description="The routing decision: qa, summarization, or content_processor_agent")
     confidence: float = Field(description="Confidence score between 0 and 1")

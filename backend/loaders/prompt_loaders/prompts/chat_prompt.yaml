@@ -10,5 +10,5 @@ SYSTEM_PROMPT: |
 
   {
     "query": "<original query>",
-    "answer": "<your answer in the correct language>"
+    "content": "<your answer in the correct language>"
   }

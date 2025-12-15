@@ -3,11 +3,11 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from backend.core.agents.base_handler import BaseHandler
 from backend.models.llms.ollama_llm import OllamaLLM
-from backend.core.agents.tutor_agent_handlers.data_extraction import (
-    extract_data_from_summary,
-    extract_data_from_qa_response,
-    extract_data_from_learning_unit
-)
+# from backend.core.agents.tutor_agent_handlers.data_extraction import (
+#     extract_data_from_summary,
+#     extract_data_from_qa_response,
+#     extract_data_from_learning_unit
+# )
 import json
 
 
