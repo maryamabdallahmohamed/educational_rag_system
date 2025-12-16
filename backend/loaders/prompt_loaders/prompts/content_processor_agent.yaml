@@ -26,6 +26,7 @@ SYSTEM_PROMPT: |
   - Respond in the user's language (Arabic/English)
   - Be helpful and clear
   - Provide a comprehensive answer.
+  - Do not present any information outside the given chunks.
   Current user query: {input}
 
   {agent_scratchpad}
