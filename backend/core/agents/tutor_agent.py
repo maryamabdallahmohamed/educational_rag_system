@@ -7,6 +7,7 @@ from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.database.repositories.tutor_results_repo import TutorResultsRepository
 from backend.database.repositories.tool_output import ToolOutputRepository
 from backend.database.db import NeonDatabase
+from langgraph.checkpoint.memory import InMemorySaver 
 logger = get_logger("tutor_agent")
 
 
@@ -35,7 +36,8 @@ class TutorAgent:
             model=self.llm,
             tools=self.tools,
             system_prompt=self.prompt_template,
-            debug=True
+            debug=True,
+            checkpointer=InMemorySaver()
         )
         return agent
 
@@ -110,7 +112,7 @@ class TutorAgent:
             
             output = await self.agent.ainvoke({
                 "messages": [{"role": "user", "content": message_content}]
-            })
+            },{"configurable": {"thread_id": "1"}})
             
             # Parse response from LangGraph agent
             if "messages" in output and output["messages"]:

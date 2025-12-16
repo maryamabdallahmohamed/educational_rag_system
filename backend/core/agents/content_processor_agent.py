@@ -5,7 +5,7 @@ from backend.core.agents.cpa_handlers.rag_chat_handler import RAGChatHandler
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import cpa_processor_state
-
+from langgraph.checkpoint.memory import InMemorySaver  
 logger = get_logger("content_processor_agent")
 
 
@@ -36,7 +36,8 @@ class ContentProcessorAgent:
             model=self.llm,
             tools=self.tools,
             system_prompt=self.prompt_template,
-            debug=True
+            debug=True,
+            checkpointer=InMemorySaver()
         )
         return agent
     
@@ -101,7 +102,7 @@ class ContentProcessorAgent:
                 logger.info("Starting simplified agent execution...")
                 
                 # --- EXECUTION ---
-                result = await self.agent.ainvoke({"messages": [{"role": "user", "content": enhanced_query}]})
+                result = await self.agent.ainvoke({"messages": [{"role": "user", "content": enhanced_query}]},{"configurable": {"thread_id": "1"}})
                 # --- FIX: ROBUST RESPONSE PARSING ---
                 # 1. Try legacy "output" key
                 if "output" in result:
@@ -127,7 +128,7 @@ class ContentProcessorAgent:
             except Exception as e:
                 logger.error(f"Error in content processor agent: {e}")
                 import traceback
-                logger.error(traceback.format_exc()) # Helpful for debugging
+                logger.error(traceback.format_exc()) 
                 self.current_state["answer"] = "I encountered an error processing your request."
                 return self.current_state
             finally:
