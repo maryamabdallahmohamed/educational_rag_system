@@ -40,11 +40,12 @@ app.add_middleware(
 )
 
 # ===== RAG Components =====
-from backend.api.routers import sessions
+from backend.api.routers import sessions, chat_history
 
 app = FastAPI(title="Educational RAG API", version="1.0")
 
 app.include_router(sessions.router)
+app.include_router(chat_history.router)
 
 # Node initialization
 document_loader = PDFLoader()

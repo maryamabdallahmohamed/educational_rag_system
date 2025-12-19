@@ -57,3 +57,14 @@ class QuestionAnswerRepository:
             await self.session.flush()  # Add await here
             return True
         return False
+    
+    async def get_by_session_id(self, session_id: UUID, limit: int = 100, offset: int = 0):
+        """Get all question-answers for a specific session, ordered by creation time."""
+        result = await self.session.execute(
+            select(QuestionAnswer)
+            .where(QuestionAnswer.session_id == session_id)
+            .order_by(QuestionAnswer.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return result.scalars().all()
