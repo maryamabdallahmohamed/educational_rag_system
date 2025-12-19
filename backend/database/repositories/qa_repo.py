@@ -15,9 +15,14 @@ class QuestionAnswerRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
     
-    async def create(self, qa_data: Dict[str, Any]):
+    async def create(self, qa_data, session_id: Optional[UUID] = None):
         """Create a new question-answer record."""
-        qa = QuestionAnswer(qa_data=qa_data)
+        # Ensure qa_data is serialized as JSON
+        if not isinstance(qa_data, (dict, list)):
+            raise ValueError("qa_data must be a dictionary or list to be stored as JSONB")
+
+        # Create a new QuestionAnswer record
+        qa = QuestionAnswer(qa_data=qa_data, session_id=session_id)
         self.session.add(qa)
         await self.session.flush()  
         return qa

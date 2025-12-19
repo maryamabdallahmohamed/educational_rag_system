@@ -6,7 +6,6 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from backend.models.llms.ollama_llm import OllamaLLM
 from backend.database.repositories.qa_repo import QuestionAnswerRepository
-from backend.database.repositories.qa_item_repo import QuestionAnswerItemRepository
 from backend.database.db import NeonDatabase
 from backend.utils.singleton import SingletonMeta
 
@@ -71,18 +70,7 @@ class QANode(metaclass=SingletonMeta):
         """Save Q&A pairs to the database."""
         async with NeonDatabase.get_session() as session:
             qa_repo = QuestionAnswerRepository(session)
-            item_repo = QuestionAnswerItemRepository(session)
-
-            # qa_record = await qa_repo.create(qa_data={"qa_pairs": qa_items})
+            qa_record = await qa_repo.create(qa_data={"qa_pairs": qa_items})
             await session.flush()
-
-            # for idx, pair in enumerate(qa_items):
-            #     await item_repo.create(
-            #         question_answer_id=qa_record.id,
-            #         qa_index=idx,
-            #         question_text=pair.get("question", ""),
-            #         answer_text=pair.get("answer", "")
-            #     )
-
             await session.commit()
             self.logger.info("Saved %d Q&A pairs to database (QA ID: %s)", len(qa_items), qa_record.id)

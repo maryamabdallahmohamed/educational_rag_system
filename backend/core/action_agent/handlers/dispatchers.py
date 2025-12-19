@@ -93,7 +93,7 @@ async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
         if "latest" not in _uploaded_documents:
             return {"error": "No document uploaded yet."}
         document = _uploaded_documents["latest"]
-        result = await _qa_node.process(query=user_message, documents=[document])
+        result = await _qa_node.process(query=user_message, documents=[document], session_id=payload.get("session_id"))
         return {"route": "qa", "result": result}
     
     if route == "summarization":
@@ -102,7 +102,7 @@ async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
         if "latest" not in _uploaded_documents:
             return {"error": "No document uploaded yet."}
         document = _uploaded_documents["latest"]
-        result = await _summarization_node.process(query=user_message, documents=[document])
+        result = await _summarization_node.process(query=user_message, documents=[document], session_id=payload.get("session_id"))
         return {"route": "summarization", "result": result}
     
     if route == "agents":

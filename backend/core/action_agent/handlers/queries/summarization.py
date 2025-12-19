@@ -102,7 +102,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         try:
             repo = SummaryRepository(session)
             summary_record = await repo.create(
-                content=content,
+                content=str(content),
                 language=language,
                 session_id=session_id
             )

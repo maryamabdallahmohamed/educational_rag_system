@@ -2,23 +2,12 @@ from typing import List
 import asyncio
 from backend.utils.logger_config import get_logger
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
-from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from backend.database.repositories.qa_repo import QuestionAnswerRepository  
 from backend.models.llms.ollama_llm import OllamaLLM
-from backend.database.repositories.qa_repo import QuestionAnswerRepository
-from backend.database.repositories.qa_item_repo import QuestionAnswerItemRepository
 from backend.database.db import NeonDatabase
 from backend.utils.singleton import SingletonMeta
-
-from pydantic import BaseModel, Field
-
-class QuestionPair(BaseModel):
-    question: str = Field(description="A question about the content")
-    generated_difficulty: str = Field(description="easy, medium, or hard")
-
-class QuestionOnlyResponse(BaseModel):
-    qa_pairs: List[QuestionPair] = Field(description="List of questions generated from the content")
-    total_questions: int = Field(description="Total number of questions generated")
+import json
 
 class QANode(metaclass=SingletonMeta):
     """Modular Q&A generation node for RAG system."""
@@ -36,7 +25,7 @@ class QANode(metaclass=SingletonMeta):
         self._initialized = True
         self.logger.info("QA Node initialized successfully")
 
-    async def process(self, query, documents: List) -> List[dict]:
+    async def process(self, query, documents: List, session_id) -> List[dict]:
         language = documents[0].metadata['language']
         context = "\n\n".join(doc.page_content for doc in documents)
         question_count = self.default_question_count
@@ -48,7 +37,7 @@ class QANode(metaclass=SingletonMeta):
                 count=question_count
             )
 
-            # await self._add_to_db(qa_pairs)
+            await self._add_to_db(qa_response,session_id=session_id)
             self.logger.info("Q&A generation and storage completed successfully")
 
             return qa_response
@@ -60,28 +49,19 @@ class QANode(metaclass=SingletonMeta):
 
     async def _generate_qa_pairs(self, context: str, lang: str, count: int) -> dict:
 
-        return await asyncio.to_thread(lambda: self.chain.invoke({
+        response = await asyncio.to_thread(lambda: self.chain.invoke({
             "context": context,
             "detected_lang": lang,
             "Questions": count
         }))
+        self.logger.debug("Raw response content: %s", response.content)
+        return json.loads(response.content)
 
-    async def _add_to_db(self, qa_items):
+    async def _add_to_db(self, qa_items,session_id):
         """Save Q&A pairs to the database."""
         async with NeonDatabase.get_session() as session:
             qa_repo = QuestionAnswerRepository(session)
-            item_repo = QuestionAnswerItemRepository(session)
-
-            # qa_record = await qa_repo.create(qa_data={"qa_pairs": qa_items})
+            qa_record = await qa_repo.create(qa_data= qa_items, session_id=session_id)
             await session.flush()
-
-            # for idx, pair in enumerate(qa_items):
-            #     await item_repo.create(
-            #         question_answer_id=qa_record.id,
-            #         qa_index=idx,
-            #         question_text=pair.get("question", ""),
-            #         answer_text=pair.get("answer", "")
-            #     )
-
             await session.commit()
-            self.logger.info("Saved %d Q&A pairs to database (QA ID: %s)", len(qa_items), qa_record.id)
+            self.logger.info("Saved Q&A record with ID: %s", qa_record.id)

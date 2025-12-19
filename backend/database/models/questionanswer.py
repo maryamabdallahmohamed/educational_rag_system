@@ -14,7 +14,8 @@ class QuestionAnswer(Base):
     qa_data = Column(JSONB, nullable=False)  
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     qa_items = relationship("QuestionAnswerItem", back_populates="question_answer", cascade="all, delete-orphan")
-    session_relation = relationship("Session", back_populates="question_answers")
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
+    session_relation = relationship("Session", back_populates="question_answers")
+    
 
 

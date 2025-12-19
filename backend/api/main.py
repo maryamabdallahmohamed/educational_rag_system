@@ -156,13 +156,13 @@ async def route_query(query: str = Form(...)):
 
 
 @app.post("/api/qa")
-async def qa_endpoint(query: str = Form(...)):
+async def qa_endpoint(query: str = Form(...), session_id: str = Form(None)):
     """Answer questions using the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
     current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await qa_node.process(query=query, documents=[document])
+    result = await qa_node.process(query=query, documents=[document],session_id=session_id)
 
     return {
         "result": result
