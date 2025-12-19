@@ -63,7 +63,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         result = None
         try:
             # Generate summary using the chain
-            result = self._generate_summary(context, query, language)
+            result = self._generate_summary(context, language)
             self.logger.debug("Raw LLM output: %s", result)
             
             # Handle case where result might be a string instead of dict
@@ -74,22 +74,18 @@ class SummarizationNode(metaclass=SingletonMeta):
                 except json.JSONDecodeError:
                     # Fallback: create a basic summary structure
                     self.logger.warning("Failed to parse JSON, creating fallback summary")
-                    result = {
-                        "title": "Document Summary",
-                        "content": result[:500] + "..." if len(result) > 500 else result,
-                        "key_points": ["Summary generated from document content"],
-                        "language": language
-                    }
+  
+  
             
-            title = result.get('title', 'Document Summary')
-            content = result.get('content', 'Summary not available')
-            key_points = result.get('key_points', ['No key points extracted'])
-            language = result.get('language', language)
+            # title = result.get('title', 'Document Summary')
+            # content = result.get('content', 'Summary not available')
+            # key_points = result.get('key_points', ['No key points extracted'])
+            # language = result.get('language', language)
             
-            self.logger.info("Summary generated successfully")
+            # self.logger.info("Summary generated successfully")
             
-            # Save to database
-            await self.add_to_db(title, content, key_points, language)
+            # # Save to database
+            # await self.add_to_db(title, content, key_points, language)
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))
@@ -99,12 +95,11 @@ class SummarizationNode(metaclass=SingletonMeta):
 
         return result
 
-    def _generate_summary(self, context: str, query: str, detected_lang: str):
+    def _generate_summary(self, context: str,  detected_lang: str):
         """Generate summary using the LLM chain - returns Summary object directly."""
-        self.logger.debug("Invoking chain with query='%s' and lang='%s'", query, detected_lang)
+        self.logger.debug("Invoking chain with context='%s'  detected_lang=%s", context, detected_lang)
         return self.chain.invoke({
             "context": context,
-            "instruction": query,
             "detected_lang": detected_lang,
             "format_instructions": self.parser.get_format_instructions()
         })

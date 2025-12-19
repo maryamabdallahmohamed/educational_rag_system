@@ -1,6 +1,6 @@
 # backend/core/nodes/summarization_node.py
-from langchain.prompts import ChatPromptTemplate
-from backend.models.llms.groq_llm import GroqLLM
+from langchain_core.prompts import ChatPromptTemplate
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.utils.logger_config import get_logger
 from backend.core.states.graph_states import RAGState, Summary
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
@@ -22,7 +22,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         if getattr(self, "_initialized", False):
             return
         self.logger = get_logger("summarization_node")
-        llm_wrapper = GroqLLM()
+        llm_wrapper = OllamaLLM()
         self.llm = llm_wrapper.llm
         
         # Setup JSON output parser
@@ -60,9 +60,10 @@ class SummarizationNode(metaclass=SingletonMeta):
             return None
         self.logger.debug("Prepared context of length: %d characters", len(context))
         
+        result = None
         try:
             # Generate summary using the chain
-            result = self._generate_summary(context, query, language)
+            result = self._generate_summary(context,language)
             self.logger.debug("Raw LLM output: %s", result)
             
             # Handle case where result might be a string instead of dict
@@ -73,22 +74,18 @@ class SummarizationNode(metaclass=SingletonMeta):
                 except json.JSONDecodeError:
                     # Fallback: create a basic summary structure
                     self.logger.warning("Failed to parse JSON, creating fallback summary")
-                    result = {
-                        "title": "Document Summary",
-                        "content": result[:500] + "..." if len(result) > 500 else result,
-                        "key_points": ["Summary generated from document content"],
-                        "language": language
-                    }
+  
+  
             
-            title = result.get('title', 'Document Summary')
-            content = result.get('content', 'Summary not available')
-            key_points = result.get('key_points', ['No key points extracted'])
-            language = result.get('language', language)
+            # title = result.get('title', 'Document Summary')
+            # content = result.get('content', 'Summary not available')
+            # key_points = result.get('key_points', ['No key points extracted'])
+            # language = result.get('language', language)
             
-            self.logger.info("Summary generated successfully")
+            # self.logger.info("Summary generated successfully")
             
-            # Save to database
-            await self.add_to_db(title, content, key_points, language)
+            # # Save to database
+            # await self.add_to_db(title, content, key_points, language)
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))

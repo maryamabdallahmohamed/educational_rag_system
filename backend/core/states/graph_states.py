@@ -52,10 +52,7 @@ class RouterOutput(BaseModel):
     reasoning: str = Field(description="Brief explanation for the routing decision")
 
 class Summary(BaseModel):
-    title: str = Field(description="Title or main topic of the summary")
     content: str = Field(description="The summarized content")
-    key_points: List[str] = Field(description="Main points extracted from the content")
-    language: str = Field(description="Language of the summary")
 
 
 class LearningUnit(BaseModel):
