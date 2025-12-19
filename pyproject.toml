@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
     "accelerate==1.12.0",
+    "alembic>=1.17.2",
     "arabic-reshaper==3.0.0",
     "asyncpg==0.30.0",
     "backports-tarfile==1.2.0",

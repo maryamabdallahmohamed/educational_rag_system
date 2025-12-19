@@ -13,10 +13,8 @@ class QuestionAnswer(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     qa_data = Column(JSONB, nullable=False)  
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    
-    # Relationship to individual Q&A items
     qa_items = relationship("QuestionAnswerItem", back_populates="question_answer", cascade="all, delete-orphan")
-    
-    def __repr__(self):
-        return f"<QuestionAnswer(id={self.id})>"
+    session_relation = relationship("Session", back_populates="question_answers")
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
+
+

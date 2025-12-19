@@ -40,7 +40,7 @@ class SummarizationNode(metaclass=SingletonMeta):
         self.logger.info("Summarization Node initialized successfully")
         self._initialized = True
 
-    async def process(self, query, documents) -> RAGState:
+    async def process(self, query, documents,session_id) -> RAGState:
         """
         Generate a concise study summary from documents stored in state.
         """
@@ -75,17 +75,8 @@ class SummarizationNode(metaclass=SingletonMeta):
                     # Fallback: create a basic summary structure
                     self.logger.warning("Failed to parse JSON, creating fallback summary")
   
-  
-            
-            # title = result.get('title', 'Document Summary')
-            # content = result.get('content', 'Summary not available')
-            # key_points = result.get('key_points', ['No key points extracted'])
-            # language = result.get('language', language)
-            
-            # self.logger.info("Summary generated successfully")
-            
-            # # Save to database
-            # await self.add_to_db(title, content, key_points, language)
+            # Save to database
+            await self.add_to_db(result,language,session_id=session_id)
             
         except ValidationError as e:
             self.logger.error("Pydantic validation failed: %s", str(e))
@@ -104,23 +95,16 @@ class SummarizationNode(metaclass=SingletonMeta):
             "format_instructions": self.parser.get_format_instructions()
         })
     
-    async def add_to_db(self, title: str, content: str, key_points: List[str], language: str):
+    async def add_to_db(self,content,language,session_id=None):
         """Save summary to database."""
-        if not title or not content:
-            self.logger.warning("No summary to save to database")
-            return
-        
+
         session = NeonDatabase.get_session()
-        
         try:
             repo = SummaryRepository(session)
-            
-            # Create the summary record
             summary_record = await repo.create(
-                title=title,
-                content=content,
-                key_points=key_points,
-                language=language
+                content=str(content),
+                language=language,
+                session_id=session_id
             )
             
             # Commit the transaction

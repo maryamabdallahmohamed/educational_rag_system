@@ -170,13 +170,13 @@ async def qa_endpoint(query: str = Form(...)):
 
 
 @app.post("/api/summarize")
-async def summarize_endpoint(query: str = Form(...)):
+async def summarize_endpoint(query: str = Form(...), session_id: str = Form(None)):
     """Summarize the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
     current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await summarization_node.process(query=query, documents=[document])
+    result = await summarization_node.process(query=query, documents=[document],session_id=session_id)
     return {
         "result": result,
     }
