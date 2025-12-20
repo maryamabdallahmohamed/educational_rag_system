@@ -35,7 +35,7 @@ class QANode(metaclass=SingletonMeta):
         self._initialized = True
         self.logger.info("QA Node initialized successfully")
 
-    async def process(self, query, documents: List) -> List[dict]:
+    async def process(self, query, documents: List, session_id: str) -> List[dict]:
         language = documents[0].metadata['language']
         context = "\n\n".join(doc.page_content for doc in documents)
         question_count = self.default_question_count
@@ -47,8 +47,7 @@ class QANode(metaclass=SingletonMeta):
                 count=question_count
             )
 
- 
-            # await self._add_to_db(qa_pairs)
+            await self._add_to_db(qa_response, session_id=session_id)
             self.logger.info("Q&A generation and storage completed successfully")
 
             return qa_response
@@ -56,6 +55,12 @@ class QANode(metaclass=SingletonMeta):
         except Exception as e:
             self.logger.error("Error during Q&A processing: %s", str(e))
             raise
+    def serialize_ai_message(self,msg):
+
+        return {
+            "content": msg
+        }
+
 
 
     async def _generate_qa_pairs(self, context: str, lang: str, count: int) -> dict:
@@ -66,11 +71,12 @@ class QANode(metaclass=SingletonMeta):
             "Questions": count
         }))
 
-    async def _add_to_db(self, qa_items):
+    async def _add_to_db(self, qa_items,session_id: str):
         """Save Q&A pairs to the database."""
         async with NeonDatabase.get_session() as session:
+            qa_pairs_serialized = [
+            self.serialize_ai_message(pair) for pair in qa_items]
             qa_repo = QuestionAnswerRepository(session)
-            qa_record = await qa_repo.create(qa_data={"qa_pairs": qa_items})
+            qa_record = await qa_repo.create(qa_data={"qa_pairs": qa_pairs_serialized},session_id=session_id)
             await session.flush()
             await session.commit()
-            self.logger.info("Saved %d Q&A pairs to database (QA ID: %s)", len(qa_items), qa_record.id)
