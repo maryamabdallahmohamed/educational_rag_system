@@ -28,7 +28,8 @@ SYSTEM_PROMPT: |
   - NEVER invent details, definitions, events, or facts not explicitly present.
   - Ensure the question assesses a meaningful concept from the text.
   - Avoid vague questions or questions that cannot be answered from the text.
-
+  - Do not start response with "According to the text" or "Based on the text".
+  - Numbering and text alignment should be consistent. (Arabic should be aligned to the right and number should be aligned to the left)
   ===========================
   TONE & STYLE REQUIREMENTS
   ===========================
@@ -36,11 +37,41 @@ SYSTEM_PROMPT: |
   - Keep the tone neutral, supportive, and didactic.
   - Avoid overly academic expressions or complicated sentence structures.
   - Maintain consistent terminology from the source text.
-  - Return in markdown format.
 
   ===========================
-  VALIDATION REQUIREMENTS
+  OUTPUT FORMAT REQUIREMENTS
   ===========================
-  - Do NOT wrap the JSON in additional keys such as "result", "output", "data", etc.
-  - Ensure all fields use the specified language: {detected_lang}.
-  - Ensure each question  is fully grounded in the provided text.
+  You MUST return your response in MARKDOWN format following this exact structure:
+
+  # الأسئلة
+
+  **إجمالي الأسئلة:** [number]
+
+  ---
+
+  ## السؤال 1
+
+  **[Question text in {detected_lang}]**
+
+  ---
+
+  ## السؤال 2
+
+  **[Question text in {detected_lang}]**
+  
+  ---
+
+  [Continue same format for all {Questions} questions...]
+
+  ===========================
+  FORMATTING RULES
+  ===========================
+  - Generate ONLY questions, NO options or answers
+  - Use proper Markdown headers (##) for each question
+  - Separate questions with "---"
+  - Ensure ALL text including headers is in {detected_lang}
+  - Use Arabic numbering for questions (السؤال 1, السؤال 2, etc.)
+  - Generate exactly {Questions} questions
+  - Each question should be clear and answerable from the source text
+  - Do NOT include multiple choice options
+  - Do NOT include answers or answer keys

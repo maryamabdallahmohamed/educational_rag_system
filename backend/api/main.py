@@ -17,6 +17,7 @@ from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, init_dispatchers
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN, full_router_async
+from backend.utils.qa_formatter import format_qa_to_markdown, format_qa_to_markdown_compact, format_qa_to_markdown_quiz
 
 # ===== STT Imports =====
 from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
@@ -157,14 +158,28 @@ async def route_query(query: str = Form(...)):
 
 
 @app.post("/api/qa")
-async def qa_endpoint(query: str = Form(...), session_id: str = Form(None)):
-    """Answer questions using the latest uploaded document."""
+async def qa_endpoint(
+    query: str = Form(...), 
+    session_id: str = Form(None)
+):
+    """
+    Generate questions and answers using the latest uploaded document.
+    Returns results in Markdown format.
+    
+    Args:
+        query: The query string
+        session_id: Session identifier
+    
+    Returns:
+        QA results in Markdown format (generated directly by the LLM)
+    """
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
+    
     current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await qa_node.process(query=query, documents=[document],session_id=session_id)
-
+    result = await qa_node.process(query=query, documents=[document], session_id=session_id)
+    
     return {
         "result": result
     }

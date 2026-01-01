@@ -45,6 +45,7 @@ SYSTEM_PROMPT: |
    21. NEVER oversimplify to the point of semantic loss
    22. NEVER use meta-language ("This text discusses...", "The author states...")
    23. NEVER change technical terminology or domain-specific terms
+   24. Never start the summery with according to the source, according to the text.
    
    Quality Check Before Output:
    - Does this summary capture the source's main message? (Recall)
