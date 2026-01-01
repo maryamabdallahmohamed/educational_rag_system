@@ -20,13 +20,10 @@ from backend.core.action_agent.chains import FULL_ROUTER_CHAIN, full_router_asyn
 from backend.utils.qa_formatter import format_qa_to_markdown, format_qa_to_markdown_compact, format_qa_to_markdown_quiz
 
 # ===== STT Imports =====
-from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
-from backend.core.stt_dev_seamless.app.utils import clean_arabic_text
-from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
-
+from backend.core.ASR.src.pipeline import TranscriptionService
 # ===== FastAPI Setup =====
 app = FastAPI(
-    title="Integrated Educational API",
+    title="Educational RAG API",
     version="2.0",
     description="Document Processing + Speech-to-Text (Egyptian Arabic)"
 )
@@ -43,8 +40,6 @@ app.add_middleware(
 # ===== RAG Components =====
 from backend.api.routers import sessions, chat_history
 
-app = FastAPI(title="Educational RAG API", version="1.0")
-
 app.include_router(sessions.router)
 app.include_router(chat_history.router)
 
@@ -55,13 +50,12 @@ qa_node = QANode()
 summarization_node = SummarizationNode()
 cpa_agent = ContentProcessorAgent()
 tutor_agent = TutorAgent()
-seamless_model = SeamlessModel()
+asr_service = TranscriptionService()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
 current_query: Dict[str, Any] = {}
 
 # ===== STT Components =====
-stt: SeamlessModel | None = None
 SUPPORTED_AUDIO_FORMATS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".opus"}
 
 
@@ -86,11 +80,7 @@ async def startup_event():
     print("[startup] ✓ Dispatchers initialized")
     
     print("\n[startup] Initializing SeamlessM4Tv2 model...")
-    stt = SeamlessModel(
-        model_name="facebook/seamless-m4t-v2-large",
-        device=-1,  # CPU by default
-    )
-    print("[startup] ✓ Ready to accept requests\n")
+
 
 
 # ============================================================================
@@ -132,8 +122,27 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)
     document = document_loader.load_document(file_path)
     if document is None:
         raise HTTPException(status_code=400, detail="Failed to load document.")
+    # Validate provided session_id to avoid foreign key violations
+    valid_session_uuid = None
+    if session_id:
+        try:
+            import uuid as _uuid
+            candidate = _uuid.UUID(session_id)
+            # Verify session exists in DB
+            async with NeonDatabase.get_session() as db_session:
+                from backend.database.repositories.session_repo import SessionRepository
+                repo = SessionRepository(db_session)
+                existing = await repo.get_session(candidate)
+                if existing:
+                    valid_session_uuid = str(candidate)
+                else:
+                    # If session does not exist, ignore it to prevent FK error
+                    valid_session_uuid = None
+        except (ValueError, TypeError):
+            # Invalid UUID string; ignore session_id
+            valid_session_uuid = None
 
-    await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
+    await chunk_store_node.process([document], metadata=document.metadata, session_id=valid_session_uuid)
 
     # Save document in memory for later use
     uploaded_documents["latest"] = document
@@ -308,10 +317,11 @@ async def assistant(
 
         try:
             audio_result = await run_in_threadpool(
-                seamless_model.transcribe,
+                asr_service.process_audio,
                 audio_path=tmp_path
             )
-            message = audio_result.get("text", "")
+            # TranscriptionService now returns a plain string
+            message = audio_result if isinstance(audio_result, str) else audio_result.get("text", "")
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)

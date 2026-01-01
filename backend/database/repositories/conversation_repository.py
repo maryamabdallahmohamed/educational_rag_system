@@ -20,9 +20,13 @@ class ConversationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_all(self, limit: int = 100) -> List[Conversation]:
+    async def list_all(self, limit: int = 100, offset: int = 0) -> List[Conversation]:
+        """List all conversations across sessions, ordered by most recent."""
         result = await self.db.execute(
-            select(Conversation).order_by(Conversation.created_at.desc()).limit(limit)
+            select(Conversation)
+            .order_by(Conversation.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return result.scalars().all()
     
