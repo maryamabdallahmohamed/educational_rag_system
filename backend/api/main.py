@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 from typing import Dict, Any
+import base64
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
@@ -18,7 +19,8 @@ from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, init_dispatchers
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN, full_router_async
 from backend.utils.qa_formatter import format_qa_to_markdown, format_qa_to_markdown_compact, format_qa_to_markdown_quiz
-
+from backend.core.TTS.text_to_speech_stream import text_to_speech_stream
+from backend.database.db import NeonDatabase
 # ===== STT Imports =====
 from backend.core.ASR.src.pipeline import TranscriptionService
 # ===== FastAPI Setup =====
@@ -38,10 +40,11 @@ app.add_middleware(
 )
 
 # ===== RAG Components =====
-from backend.api.routers import sessions, chat_history
+from backend.api.routers import sessions, chat_history, tts
 
 app.include_router(sessions.router)
 app.include_router(chat_history.router)
+app.include_router(tts.router)
 
 # Node initialization
 document_loader = PDFLoader()
@@ -227,11 +230,8 @@ async def tutor_agent_endpoint(query: str = Form(...)):
         previous_query=previous_query
     )
     return {
-        "query": query,
         "result": tutor_result,
-        "service": "RAG - Content Processor Agent"
     }
-
 
 @app.post("/api/action_route")
 async def route_message(query: str = Form(...), session_id: str = Form(None)):
@@ -336,10 +336,22 @@ async def assistant(
         }
     )
 
+    # Generate Audio and Encode to Base64 (so frontend receives both in one response)
+    dispatch_text = str(result.get("dispatch_result", ""))
+    audio_base64 = None
+    if dispatch_text:
+        try:
+             audio_stream = text_to_speech_stream(dispatch_text)
+             audio_bytes = audio_stream.getvalue()
+             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        except Exception as e:
+            print(f"TTS Generation failed: {e}")
+
     return {
         "message": message,
         "route": result.get("query_route") or result.get("action_route"),
         "result": result.get("dispatch_result"),
+        "audio_base64": audio_base64,  # Frontend can play this using `data:audio/mp3;base64,...`
         "service": "Integrated Assistant"
     }
 
