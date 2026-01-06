@@ -1,9 +1,3 @@
-"""dispatchers.py
-
-Maps routed types (action_type / route) to concrete handler functions.
-Used by FULL_ROUTER_CHAIN in chains.py.
-"""
-
 from typing import Dict, Any
 from uuid import UUID
 
@@ -13,10 +7,12 @@ from backend.core.action_agent.handlers.actions.next_section import next_section
 from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
 from backend.core.action_agent.handlers.actions.prev_section import previous_section_handler
 from backend.utils.logger_config import get_logger
-from backend.utils.conversation_utils import save_conversation
+from backend.database.repositories.conversation_repository import save_conversation
+from backend.database.db import NeonDatabase
 import os
 from pdf2image import convert_from_path
-from tqdm.asyncio import tqdm
+from tqdm import tqdm   
+
 logger = get_logger("dispatcher")
 
 # Singleton instances - will be set from main.py
@@ -60,19 +56,30 @@ current_page = 0
 async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called when intent_type == 'action'.
-
-    Expected payload keys:
-      - user_message: str
-      - session_id: str | None
-      - action_type: str
-      - action_confidence: float
-      - action_details: str
     """
+    global current_page  # Fix: Allow modification of global variable
+
     action_type = payload.get("action_type")
     user_message = payload.get("user_message", "")
     session_id = payload.get("session_id")
-    file_paths = payload.get("file_paths", None)    
-    pdf_pages = load_pdf(file_paths) if file_paths else None
+    
+    # Resolve file path
+    file_path = payload.get("file_path") or payload.get("file_paths")
+    
+    # If not in payload, fallback to latest uploaded document
+    if not file_path and _uploaded_documents and "latest" in _uploaded_documents:
+        doc = _uploaded_documents["latest"]
+        if hasattr(doc, 'metadata') and doc.metadata and "source" in doc.metadata:
+             file_path = doc.metadata["source"]
+
+    # Normalize list to string if necessary
+    if isinstance(file_path, list):
+        if file_path:
+            file_path = file_path[-1] # Take the most recent
+        else:
+            file_path = None
+            
+    pdf_pages = load_pdf(file_path) if file_path else None
 
 
     if session_id and isinstance(session_id, str):
@@ -88,12 +95,24 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     
     if action_type == "open_doc":
         result = open_doc_handler(pdf_pages)
+        if result.get("status") == "success":
+            current_page = 0 # Reset to start
+            
     elif action_type == "add_note":
         result = await add_note(payload)
+        
     elif action_type == "next_section":
         result = await next_section_handler(pdf_pages, current_page)
+        # Fix: Only increment if success
+        if result.get("status") == "success":
+            current_page = result.get("page_number", current_page + 1)
+            
     elif action_type == "prev_section":
         result = await previous_section_handler(pdf_pages, current_page)
+        # Fix: Only decrement if success
+        if result.get("status") == "success":
+            current_page = result.get("page_number", current_page - 1)
+            
     elif action_type == "open_note":
         result = await display_note(payload)
     else:
