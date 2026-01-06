@@ -5,12 +5,14 @@ Used by FULL_ROUTER_CHAIN in chains.py.
 """
 
 from typing import Dict, Any
+from uuid import UUID
 
 from backend.core.action_agent.handlers.actions.add_note import add_note
 from backend.core.action_agent.handlers.actions.next_section import next_section_handler
 from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
 from backend.core.action_agent.handlers.actions.prev_section import previous_section_handler
 from backend.utils.logger_config import get_logger
+from backend.utils.conversation_utils import save_conversation
 
 logger = get_logger("dispatcher")
 
@@ -47,31 +49,63 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
       - action_details: str
     """
     action_type = payload.get("action_type")
+    user_message = payload.get("user_message", "")
+    session_id = payload.get("session_id")
+    
+    # Convert session_id to UUID if it's a string
+    if session_id and isinstance(session_id, str):
+        try:
+            session_id_uuid = UUID(session_id)
+        except (ValueError, AttributeError):
+            logger.warning(f"Invalid session_id format: {session_id}")
+            session_id_uuid = None
+    else:
+        session_id_uuid = session_id
 
+    result = None
+    
     if action_type == "open_doc":
-        return open_doc_handler(payload)
-    if action_type == "add_note":
-        return add_note(payload)
-    # if action_type == "open_chat":
-    #     return open_chat_handler(payload)
-    # if action_type == "close_chat":
-    #     return close_chat_handler(payload)
-    # if action_type == "bookmark":
-    #     return bookmark_handler(payload)
-    # if action_type == "show_bookmarks":
-    #     return show_bookmarks_handler(payload)
-    if action_type == "next_section":
-        return next_section_handler(payload)
-    if action_type == "prev_section":
-        return previous_section_handler(payload)
-    # if action_type == "location":
-    #     return location_handler(payload)
-
-    return {
-        "status": "unknown_action",
-        "action_type": action_type,
-        "payload": payload,
-    }
+        result = open_doc_handler(payload)
+    elif action_type == "add_note":
+        result = add_note(payload)
+    elif action_type == "next_section":
+        result = next_section_handler(payload)
+    elif action_type == "prev_section":
+        result = previous_section_handler(payload)
+    else:
+        result = {
+            "status": "unknown_action",
+            "action_type": action_type,
+            "payload": payload,
+        }
+    
+    # Save conversation to database asynchronously
+    # Note: This is a sync function, so we need to handle async save differently
+    # For now, we'll import asyncio and create a task
+    if result and session_id_uuid:
+        import asyncio
+        ai_response_text = str(result) if not isinstance(result, str) else result
+        try:
+            # Try to get or create event loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is running, create a task
+                asyncio.create_task(save_conversation(
+                    user_query=user_message,
+                    ai_response=ai_response_text,
+                    session_id=session_id_uuid
+                ))
+            else:
+                # If no loop is running, run sync
+                loop.run_until_complete(save_conversation(
+                    user_query=user_message,
+                    ai_response=ai_response_text,
+                    session_id=session_id_uuid
+                ))
+        except Exception as e:
+            logger.error(f"Failed to save action conversation: {str(e)}")
+    
+    return result
 
 
 async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -83,9 +117,21 @@ async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
       - route: str  # "qa" | "summarization" | "agents"
       - route_confidence: float
       - route_details: str
+      - session_id: str | None
     """
     route = payload.get("route")
     user_message = payload.get("user_message", "")
+    session_id = payload.get("session_id")
+    
+    # Convert session_id to UUID if it's a string
+    if session_id and isinstance(session_id, str):
+        try:
+            session_id = UUID(session_id)
+        except (ValueError, AttributeError):
+            logger.warning(f"Invalid session_id format: {session_id}")
+            session_id = None
+    
+    result = None
     
     if route == "qa":
         if _qa_node is None:
@@ -93,19 +139,19 @@ async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
         if "latest" not in _uploaded_documents:
             return {"error": "No document uploaded yet."}
         document = _uploaded_documents["latest"]
-        result = await _qa_node.process(query=user_message, documents=[document])
-        return {"route": "qa", "result": result}
+        result = await _qa_node.process(query=user_message, documents=[document], session_id=session_id)
+        response = {"route": "qa", "result": result}
     
-    if route == "summarization":
+    elif route == "summarization":
         if _summarization_node is None:
             return {"error": "Summarization node not initialized. Call init_dispatchers first."}
         if "latest" not in _uploaded_documents:
             return {"error": "No document uploaded yet."}
         document = _uploaded_documents["latest"]
-        result = await _summarization_node.process(query=user_message, documents=[document])
-        return {"route": "summarization", "result": result}
+        result = await _summarization_node.process(query=user_message, documents=[document], session_id=session_id)
+        response = {"route": "summarization", "result": result}
     
-    if route == "agents":
+    elif route == "agents":
         if _cpa_agent is None or _tutor_agent is None:
             return {"error": "Agents not initialized. Call init_dispatchers first."}
         if "latest" not in _uploaded_documents:
@@ -122,10 +168,23 @@ async def dispatch_query(payload: Dict[str, Any]) -> Dict[str, Any]:
             current_query=_current_query,
             previous_query=previous_query
         )
-        return {"route": "agents", "result": tutor_result}
+        result = tutor_result
+        response = {"route": "agents", "result": tutor_result}
     
-    return {
-        "status": "unknown_route",
-        "route": route,
-        "payload": payload,
-    }
+    else:
+        response = {
+            "status": "unknown_route",
+            "route": route,
+            "payload": payload,
+        }
+    
+    # Save conversation to database
+    if result and session_id:
+        ai_response_text = str(result) if not isinstance(result, str) else result
+        await save_conversation(
+            user_query=user_message,
+            ai_response=ai_response_text,
+            session_id=session_id
+        )
+    
+    return response

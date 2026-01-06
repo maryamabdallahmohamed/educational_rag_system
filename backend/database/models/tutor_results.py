@@ -13,5 +13,7 @@ class TutorResults(Base):
     cpa_result = Column(JSONB, nullable=True)  
     tutor_result = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
 
     tool_outputs = relationship("ToolOutput", back_populates="result", cascade="all, delete-orphan")
+    session_relation = relationship("Session", back_populates="tutor_results")

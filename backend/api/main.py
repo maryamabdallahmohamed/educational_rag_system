@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 from typing import Dict, Any
+import base64
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
@@ -17,15 +18,14 @@ from backend.core.nodes.summarizer import SummarizationNode
 from backend.core.nodes.router import router_node
 from backend.core.action_agent.handlers.dispatchers import dispatch_action, init_dispatchers
 from backend.core.action_agent.chains import FULL_ROUTER_CHAIN, full_router_async
-
+from backend.utils.qa_formatter import format_qa_to_markdown, format_qa_to_markdown_compact, format_qa_to_markdown_quiz
+from backend.core.TTS.text_to_speech_stream import text_to_speech_stream
+from backend.database.db import NeonDatabase
 # ===== STT Imports =====
-from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
-from backend.core.stt_dev_seamless.app.utils import clean_arabic_text
-from backend.core.stt_dev_seamless.app.seamless_model import SeamlessModel
-
+from backend.core.ASR.src.pipeline import TranscriptionService
 # ===== FastAPI Setup =====
 app = FastAPI(
-    title="Integrated Educational API",
+    title="Educational RAG API",
     version="2.0",
     description="Document Processing + Speech-to-Text (Egyptian Arabic)"
 )
@@ -40,11 +40,11 @@ app.add_middleware(
 )
 
 # ===== RAG Components =====
-from backend.api.routers import sessions
-
-app = FastAPI(title="Educational RAG API", version="1.0")
+from backend.api.routers import sessions, chat_history, tts
 
 app.include_router(sessions.router)
+app.include_router(chat_history.router)
+app.include_router(tts.router)
 
 # Node initialization
 document_loader = PDFLoader()
@@ -53,13 +53,12 @@ qa_node = QANode()
 summarization_node = SummarizationNode()
 cpa_agent = ContentProcessorAgent()
 tutor_agent = TutorAgent()
-seamless_model = SeamlessModel()
+asr_service = TranscriptionService()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
 current_query: Dict[str, Any] = {}
 
 # ===== STT Components =====
-stt: SeamlessModel | None = None
 SUPPORTED_AUDIO_FORMATS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".opus"}
 
 
@@ -84,11 +83,7 @@ async def startup_event():
     print("[startup] ✓ Dispatchers initialized")
     
     print("\n[startup] Initializing SeamlessM4Tv2 model...")
-    stt = SeamlessModel(
-        model_name="facebook/seamless-m4t-v2-large",
-        device=-1,  # CPU by default
-    )
-    print("[startup] ✓ Ready to accept requests\n")
+
 
 
 # ============================================================================
@@ -130,8 +125,27 @@ async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)
     document = document_loader.load_document(file_path)
     if document is None:
         raise HTTPException(status_code=400, detail="Failed to load document.")
+    # Validate provided session_id to avoid foreign key violations
+    valid_session_uuid = None
+    if session_id:
+        try:
+            import uuid as _uuid
+            candidate = _uuid.UUID(session_id)
+            # Verify session exists in DB
+            async with NeonDatabase.get_session() as db_session:
+                from backend.database.repositories.session_repo import SessionRepository
+                repo = SessionRepository(db_session)
+                existing = await repo.get_session(candidate)
+                if existing:
+                    valid_session_uuid = str(candidate)
+                else:
+                    # If session does not exist, ignore it to prevent FK error
+                    valid_session_uuid = None
+        except (ValueError, TypeError):
+            # Invalid UUID string; ignore session_id
+            valid_session_uuid = None
 
-    await chunk_store_node.process([document], metadata=document.metadata, session_id=session_id)
+    await chunk_store_node.process([document], metadata=document.metadata, session_id=valid_session_uuid)
 
     # Save document in memory for later use
     uploaded_documents["latest"] = document
@@ -156,27 +170,41 @@ async def route_query(query: str = Form(...)):
 
 
 @app.post("/api/qa")
-async def qa_endpoint(query: str = Form(...)):
-    """Answer questions using the latest uploaded document."""
+async def qa_endpoint(
+    query: str = Form(...), 
+    session_id: str = Form(None)
+):
+    """
+    Generate questions and answers using the latest uploaded document.
+    Returns results in Markdown format.
+    
+    Args:
+        query: The query string
+        session_id: Session identifier
+    
+    Returns:
+        QA results in Markdown format (generated directly by the LLM)
+    """
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
+    
     current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await qa_node.process(query=query, documents=[document])
-
+    result = await qa_node.process(query=query, documents=[document], session_id=session_id)
+    
     return {
         "result": result
     }
 
 
 @app.post("/api/summarize")
-async def summarize_endpoint(query: str = Form(...)):
+async def summarize_endpoint(query: str = Form(...), session_id: str = Form(None)):
     """Summarize the latest uploaded document."""
     if "latest" not in uploaded_documents:
         return {"error": "No document uploaded yet."}
     current_query["latest"] = query
     document = uploaded_documents["latest"]
-    result = await summarization_node.process(query=query, documents=[document])
+    result = await summarization_node.process(query=query, documents=[document],session_id=session_id)
     return {
         "result": result,
     }
@@ -202,11 +230,8 @@ async def tutor_agent_endpoint(query: str = Form(...)):
         previous_query=previous_query
     )
     return {
-        "query": query,
         "result": tutor_result,
-        "service": "RAG - Content Processor Agent"
     }
-
 
 @app.post("/api/action_route")
 async def route_message(query: str = Form(...), session_id: str = Form(None)):
@@ -292,10 +317,11 @@ async def assistant(
 
         try:
             audio_result = await run_in_threadpool(
-                seamless_model.transcribe,
+                asr_service.process_audio,
                 audio_path=tmp_path
             )
-            message = audio_result.get("text", "")
+            # TranscriptionService now returns a plain string
+            message = audio_result if isinstance(audio_result, str) else audio_result.get("text", "")
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
@@ -310,10 +336,22 @@ async def assistant(
         }
     )
 
+    # Generate Audio and Encode to Base64 (so frontend receives both in one response)
+    dispatch_text = str(result.get("dispatch_result", ""))
+    audio_base64 = None
+    if dispatch_text:
+        try:
+             audio_stream = text_to_speech_stream(dispatch_text)
+             audio_bytes = audio_stream.getvalue()
+             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        except Exception as e:
+            print(f"TTS Generation failed: {e}")
+
     return {
         "message": message,
         "route": result.get("query_route") or result.get("action_route"),
         "result": result.get("dispatch_result"),
+        "audio_base64": audio_base64,  # Frontend can play this using `data:audio/mp3;base64,...`
         "service": "Integrated Assistant"
     }
 

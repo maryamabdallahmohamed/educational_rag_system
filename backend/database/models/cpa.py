@@ -1,4 +1,4 @@
-from sqlalchemy import Column,  Text
+from sqlalchemy import Column,  Text, ForeignKey
 from backend.database.models import Base
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,9 +16,10 @@ class ContentProcessorAgent(Base):
     chunks_used = Column(JSONB, nullable=True)  
     similarity_scores = Column(JSONB, nullable=True)  
     units_generated_count = Column(Text, nullable=True)  
-    
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=True)
     
     # Relationship to learning units (if generated)
     learning_units = relationship("LearningUnit", back_populates="cpa_session", cascade="all, delete-orphan")
+    session_relation = relationship("Session", back_populates="cpa_sessions")
 
 

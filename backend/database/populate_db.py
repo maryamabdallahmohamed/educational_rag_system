@@ -11,13 +11,7 @@ engine = Db.init()
 
 async def init_db():
     async with engine.begin() as conn:
-        # Enable pgvector extension if not already
-        try:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        except Exception as e:
-            print(f"⚠️ Skipping extension creation: {e}")
-        
-        # Create tables from your models
+
         await conn.run_sync(Base.metadata.create_all)
 
     print("✅ Database initialized")

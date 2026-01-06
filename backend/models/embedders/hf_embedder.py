@@ -3,11 +3,11 @@ from backend.config import DEVICE, CACHE_DIR
 from typing import List
 import asyncio
 import os
+from sentence_transformers import SentenceTransformer
 
 # Set environment variable to disable tqdm completely
 os.environ['TQDM_DISABLE'] = '1'
 
-from sentence_transformers import SentenceTransformer
 
 
 
@@ -42,3 +42,4 @@ class HFEmbedder(BaseEmbedder):
     def _encode_sync(self, texts, **kwargs):
         """Helper method for synchronous encoding (used by asyncio.to_thread)"""
         return self.model.encode(texts, **kwargs)
+    
