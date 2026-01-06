@@ -63,6 +63,7 @@ def _full_router_logic(inputs: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     elif intent["intent_type"] == "action":
+        
         a_route = route_action_message(user_message)
         result["action_route"] = a_route
 
@@ -127,9 +128,9 @@ async def full_router_async(inputs: Dict[str, Any]) -> Dict[str, Any]:
         a_route = route_action_message(user_message)
         result["action_route"] = a_route
 
-        # Actions are still sync
+        # Execute action dispatcher
         if dispatch_action_fn is not None:
-            result["dispatch_result"] = dispatch_action_fn(
+            result["dispatch_result"] = await dispatch_action_fn(
                 {
                     "user_message": user_message,
                     "session_id": session_id,

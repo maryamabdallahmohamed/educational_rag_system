@@ -16,3 +16,4 @@ class Session(Base):
     questions = relationship("QuestionAnswer", back_populates="session_relation")
     question_answers = relationship("QuestionAnswer", back_populates="session_relation", overlaps="questions")
     tutor_results = relationship("TutorResults", back_populates="session_relation")
+    notes = relationship("Note", back_populates="session_relation")

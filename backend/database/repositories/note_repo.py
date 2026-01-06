@@ -8,10 +8,9 @@ class NoteRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add_note(self, note_text: str,  document_id: Optional[uuid.UUID] = None, session_id: Optional[uuid.UUID] = None ) -> Note:
+    async def add_note(self, note_text: str, session_id: Optional[uuid.UUID] = None ) -> Note:
         new_note = Note(
             note=note_text,
-            document_id=document_id,
             session_id=session_id
         )
         self.session.add(new_note)

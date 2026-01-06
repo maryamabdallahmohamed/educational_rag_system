@@ -40,7 +40,7 @@ async def _get_next_section(doc_id: str, current_page: str):
         return None, None, str(e)
 
 
-def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handler for 'next_section' action.
     Increments page number and fetches chunks for the next page of the specified document.
@@ -59,7 +59,7 @@ def next_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
          }
 
     try:
-        chunks, next_page, error_msg = asyncio.run(_get_next_section(doc_id, str(current_page)))
+        chunks, next_page, error_msg = await _get_next_section(doc_id, str(current_page))
         
         if error_msg:
              return {

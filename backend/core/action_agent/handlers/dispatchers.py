@@ -8,6 +8,7 @@ from typing import Dict, Any
 from uuid import UUID
 
 from backend.core.action_agent.handlers.actions.add_note import add_note
+from backend.core.action_agent.handlers.actions.display_notes import display_note
 from backend.core.action_agent.handlers.actions.next_section import next_section_handler
 from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
 from backend.core.action_agent.handlers.actions.prev_section import previous_section_handler
@@ -37,7 +38,7 @@ def init_dispatchers(qa_node, summarization_node, cpa_agent, tutor_agent, upload
     logger.info("Dispatchers initialized with shared instances")
 
 
-def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called when intent_type == 'action'.
 
@@ -67,11 +68,13 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     if action_type == "open_doc":
         result = open_doc_handler(payload)
     elif action_type == "add_note":
-        result = add_note(payload)
+        result = await add_note(payload)
     elif action_type == "next_section":
-        result = next_section_handler(payload)
+        result = await next_section_handler(payload)
     elif action_type == "prev_section":
-        result = previous_section_handler(payload)
+        result = await previous_section_handler(payload)
+    elif action_type == "open_note":
+        result = await display_note(payload)
     else:
         result = {
             "status": "unknown_action",

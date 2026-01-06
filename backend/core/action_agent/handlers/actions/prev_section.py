@@ -39,7 +39,7 @@ async def _get_previous_section(doc_id: str, current_page: str):
 
 
 
-def previous_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def previous_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handler for 'previous_section' action.
     Decrements page number and fetches chunks for the previous page of the specified document.
@@ -56,7 +56,7 @@ def previous_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
          }
 
     try:
-        chunks, prev_page, error_msg = asyncio.run(_get_previous_section(doc_id, str(current_page)))
+        chunks, prev_page, error_msg = await _get_previous_section(doc_id, str(current_page))
         
         if error_msg:
              return {
