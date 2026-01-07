@@ -1,10 +1,3 @@
-"""
-intent_classification.py
-
-Pure backend-ready intent classifier using the shared GroqLLM wrapper.
-Classifies a user message as "action" or "query" with confidence and details.
-"""
-
 import re
 import json
 from typing import Dict, Any

@@ -2,7 +2,7 @@ from typing import Dict, Any, Union
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser, PydanticOutputParser
 from langchain_classic.memory import ConversationBufferMemory
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.states.graph_states import LearningUnit
 from backend.utils.helpers.language_detection import returnlang
@@ -13,7 +13,7 @@ class RAGResponseGenerator:
     """Handles response generation using LLM with context"""
 
     def __init__(self, use_json_output: bool = False, use_learning_unit: bool = False):
-        self.llm_wrapper = GroqLLM()
+        self.llm_wrapper = OllamaLLM()
         self.llm = self.llm_wrapper.llm
         self.logger = logging.getLogger(__name__)
         self.use_json_output = use_json_output

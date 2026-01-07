@@ -2,7 +2,7 @@ from typing import List
 from langchain.agents import AgentExecutor, create_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import Tool
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.core.agents.cpa_handlers.explainable_units_handler import ExplainableUnitsHandler
 from backend.core.agents.cpa_handlers.rag_chat_handler import RAGChatHandler
 from backend.utils.helpers.language_detection import returnlang
@@ -20,7 +20,7 @@ class ContentProcessorAgent:
     """
 
     def __init__(self):
-        self.llm = GroqLLM().llm
+        self.llm = OllamaLLM().llm
         self.current_state = {}
         self.cpa_state = cpa_processor_state()
 

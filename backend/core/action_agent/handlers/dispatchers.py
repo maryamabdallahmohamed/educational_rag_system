@@ -82,29 +82,15 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
             "payload": payload,
         }
     
-    # Save conversation to database asynchronously
-    # Note: This is a sync function, so we need to handle async save differently
-    # For now, we'll import asyncio and create a task
+    # Save conversation to database
     if result and session_id_uuid:
-        import asyncio
         ai_response_text = str(result) if not isinstance(result, str) else result
         try:
-            # Try to get or create event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, create a task
-                asyncio.create_task(save_conversation(
-                    user_query=user_message,
-                    ai_response=ai_response_text,
-                    session_id=session_id_uuid
-                ))
-            else:
-                # If no loop is running, run sync
-                loop.run_until_complete(save_conversation(
-                    user_query=user_message,
-                    ai_response=ai_response_text,
-                    session_id=session_id_uuid
-                ))
+            await save_conversation(
+                user_query=user_message,
+                ai_response=ai_response_text,
+                session_id=session_id_uuid
+            )
         except Exception as e:
             logger.error(f"Failed to save action conversation: {str(e)}")
     

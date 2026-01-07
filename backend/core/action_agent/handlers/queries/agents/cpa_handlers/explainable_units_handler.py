@@ -3,7 +3,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.tools import Tool
 from backend.core.agents.base_handler import BaseHandler
 from backend.core.states.graph_states import RAGState, LearningUnit
-from backend.models.llms.groq_llm import GroqLLM
+from backend.models.llms.ollama_llm import OllamaLLM
 from backend.utils.helpers.language_detection import returnlang
 from backend.loaders.prompt_loaders.prompt_loader import PromptLoader
 from backend.core.rag.rag_retriever import RAGRetriever
@@ -22,7 +22,7 @@ class ExplainableUnitsHandler(BaseHandler):
     
     def __init__(self):
         super().__init__()
-        self.llm_wrapper = GroqLLM()
+        self.llm_wrapper = OllamaLLM()
         self.llm = self.llm_wrapper.llm
         self.parser = JsonOutputParser(pydantic_object=LearningUnit)
         self.retriever = RAGRetriever()

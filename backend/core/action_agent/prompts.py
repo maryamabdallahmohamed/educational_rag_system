@@ -113,24 +113,29 @@ When detecting an **add_note** command:
 
 You MUST extract:
 
-• note_text  (REQUIRED)
-• doc_id     (OPTIONAL — if not provided, set null)
-• page_num   (OPTIONAL — if not provided, set null)
+1) **note_text** (REQUIRED): 
+   The content of the note. 
+   - Extract text inside parentheses `(...)` or quotes `"..."`.
+   - OR extract text following the command verbs ("add note", "زود نوتة").
+   - **CRITICAL**: Remove the page number mention from `note_text`.
 
-note_text is the content of the note.
+2) **page_num** (OPTIONAL):
+   - Extract if user says "page X", "p X", "صفحة X", "ص X".
+   - Convert Arabic numerals (١, ٢, ٣...) to Integers (1, 2, 3...).
 
-Extract note_text from ANY of:
+Examples:
 
-• text inside parentheses   → ( ... )
-• text inside quotes        → " ..." "
-• text following verbs:
-  زود / اضف / add / حطلي / خليها نوتة / خليه ملحوظة
+User: (حلو اوي) زود نوته في صفحة ٨
+-> note_text: "حلو اوي"
+-> page_num: 8
 
-Examples of phrases that represent note_text:
+User: Add note "revise this" on page 12
+-> note_text: "revise this"
+-> page_num: 12
 
-(حلو اوي)
-"Important formula"
-خلي دي نوتة مهمة
+User: زود نوتة ذاكر دي كويس
+-> note_text: "ذاكر دي كويس"
+-> page_num: null
 
 If the user requests adding a note BUT no note content is given:
 
@@ -162,6 +167,8 @@ Return ONLY JSON:
       "page_num": int | null,
       "note_text": string | null
   }
+  "note_text": string | null
+  "page_num": int | null
 }
 
 ================================================================
@@ -192,14 +199,14 @@ Default fallback → unknown
 EXAMPLES
 ================================================================
 
-User: (حلو اوي)زود نوته
+User: (حلو اوي) زود نوته في صفحة ٨
 {
   "action_type":"add_note",
   "action_confidence":0.99,
-  "action_details":"Add note command detected.",
+  "action_details":"Add note on page 8 detected.",
   "arguments":{
     "doc_id": null,
-    "page_num": null,
+    "page_num": 8,
     "note_text": "حلو اوي"
   }
 }

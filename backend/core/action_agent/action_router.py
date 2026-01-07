@@ -1,10 +1,3 @@
-"""
-action_router.py
-
-Backend-ready action router using SUBACTION_ROUTER_PROMPT and GroqLLM.
-Maps messages to concrete action types like "open_doc", "add_note", etc.
-"""
-
 import re
 import json
 from typing import Dict, Any

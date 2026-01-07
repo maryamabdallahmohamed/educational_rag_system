@@ -1,15 +1,8 @@
-"""
-query_router.py
-
-Backend-ready query router using SUBQUERY_ROUTER_PROMPT and GroqLLM.
-Classifies a query into: "qa", "summarization", or "content_processor_agent".
-"""
-
 import re
 import json
 from typing import Dict, Any
 from backend.core.action_agent.prompts import SUBQUERY_ROUTER_PROMPT
-from backend.models.llms.ollama_llm import OllamaLLM  # adjust path if needed
+from backend.models.llms.ollama_llm import OllamaLLM  
 from backend.utils.logger_config import get_logger
 logger = get_logger("query_router")
 # Shared LLM wrapper instance

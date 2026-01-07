@@ -336,22 +336,10 @@ async def assistant(
         }
     )
 
-    # Generate Audio and Encode to Base64 (so frontend receives both in one response)
-    dispatch_text = str(result.get("dispatch_result", ""))
-    audio_base64 = None
-    if dispatch_text:
-        try:
-             audio_stream = text_to_speech_stream(dispatch_text)
-             audio_bytes = audio_stream.getvalue()
-             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
-        except Exception as e:
-            print(f"TTS Generation failed: {e}")
-
     return {
         "message": message,
         "route": result.get("query_route") or result.get("action_route"),
         "result": result.get("dispatch_result"),
-        "audio_base64": audio_base64,  # Frontend can play this using `data:audio/mp3;base64,...`
         "service": "Integrated Assistant"
     }
 
