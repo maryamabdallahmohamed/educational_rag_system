@@ -29,9 +29,19 @@ async def previous_section_handler(pdf_pages: List, current_page: int) -> Dict[s
 
         prev_page = current_page - 1
         if prev_page < 1:
+            page_image = pdf_pages[0]
+            
+            # Convert PIL Image to Base64
+            img_byte_arr = io.BytesIO()
+            page_image.save(img_byte_arr, format='JPEG')
+            img_byte_arr = img_byte_arr.getvalue()
+            base64_encoded = base64.b64encode(img_byte_arr).decode('utf-8')
+            
+            logger.info(f"Previous section for page {prev_page} fetched successfully")
             return {
-                "status": "start_of_document",
-                "message": "Start of document reached",
+                "status": "success",
+                "page_number": prev_page,
+                "image": base64_encoded,
                 "action": "prev_section"
             }
 

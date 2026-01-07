@@ -57,7 +57,7 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called when intent_type == 'action'.
     """
-    global current_page  # Fix: Allow modification of global variable
+    global current_page 
 
     action_type = payload.get("action_type")
     user_message = payload.get("user_message", "")
@@ -82,15 +82,6 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     pdf_pages = load_pdf(file_path) if file_path else None
 
 
-    if session_id and isinstance(session_id, str):
-        try:
-            session_id_uuid = UUID(session_id)
-        except (ValueError, AttributeError):
-            logger.warning(f"Invalid session_id format: {session_id}")
-            session_id_uuid = None
-    else:
-        session_id_uuid = session_id
-
     result = None
     
     if action_type == "open_doc":
@@ -103,13 +94,11 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
         
     elif action_type == "next_section":
         result = await next_section_handler(pdf_pages, current_page)
-        # Fix: Only increment if success
         if result.get("status") == "success":
             current_page = result.get("page_number", current_page + 1)
             
     elif action_type == "prev_section":
         result = await previous_section_handler(pdf_pages, current_page)
-        # Fix: Only decrement if success
         if result.get("status") == "success":
             current_page = result.get("page_number", current_page - 1)
             
@@ -122,14 +111,13 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
             "payload": payload,
         }
     
-    # Save conversation to database
-    if result and session_id_uuid:
+    if result and session_id:
         ai_response_text = str(result) if not isinstance(result, str) else result
         try:
             await save_conversation(
                 user_query=user_message,
                 ai_response=ai_response_text,
-                session_id=session_id_uuid
+                session_id=session_id
             )
         except Exception as e:
             logger.error(f"Failed to save action conversation: {str(e)}")
