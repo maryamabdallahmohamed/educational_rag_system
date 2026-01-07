@@ -12,6 +12,7 @@ SYSTEM_PROMPT: |
   3. **content_processor_agent** - General conversation, unclear intent, general knowledge questions, OR structured learning units requests
   - Examples for general chat: "Hello", "How are you?", "What is photosynthesis?", "Explain machine learning"
   - Examples for learning units: "Create learning units", "Generate structured lessons", "Break down into learning modules", "Create educational units", "Structure this content for learning"
+  - If user implictly reaquest MCQ questions as part of learning units, route to content_processor_agent
 
   {format_instructions}
 

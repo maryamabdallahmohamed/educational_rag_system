@@ -8,12 +8,15 @@ from typing import Dict, Any
 from uuid import UUID
 
 from backend.core.action_agent.handlers.actions.add_note import add_note
+from backend.core.action_agent.handlers.actions.display_notes import display_note
 from backend.core.action_agent.handlers.actions.next_section import next_section_handler
 from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
 from backend.core.action_agent.handlers.actions.prev_section import previous_section_handler
 from backend.utils.logger_config import get_logger
 from backend.utils.conversation_utils import save_conversation
-
+import os
+from pdf2image import convert_from_path
+from tqdm.asyncio import tqdm
 logger = get_logger("dispatcher")
 
 # Singleton instances - will be set from main.py
@@ -36,8 +39,25 @@ def init_dispatchers(qa_node, summarization_node, cpa_agent, tutor_agent, upload
     _current_query = current_query
     logger.info("Dispatchers initialized with shared instances")
 
+def load_pdf(path: str, dpi: int = 300) -> list:
+    """
+    Converts a PDF or a folder of PDFs to a list of PIL Images.
+    """
+    images = []
+    if os.path.isfile(path):
+        if path.lower().endswith('.pdf'):
+            images.extend(convert_from_path(path, dpi=dpi))
+    elif os.path.isdir(path):
+        for pdf_file in tqdm(os.listdir(path), desc="Converting PDFs"):
+            if pdf_file.lower().endswith('.pdf'):
+                pdf_path = os.path.join(path, pdf_file)
+                images.extend(convert_from_path(pdf_path, dpi=dpi))   
+    print(f"\n✅ PDF Conversion complete! Loaded {len(images)} pages.")
+    return images
 
-def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
+
+current_page = 0
+async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called when intent_type == 'action'.
 
@@ -51,8 +71,10 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     action_type = payload.get("action_type")
     user_message = payload.get("user_message", "")
     session_id = payload.get("session_id")
-    
-    # Convert session_id to UUID if it's a string
+    file_paths = payload.get("file_paths", None)    
+    pdf_pages = load_pdf(file_paths) if file_paths else None
+
+
     if session_id and isinstance(session_id, str):
         try:
             session_id_uuid = UUID(session_id)
@@ -65,13 +87,15 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     result = None
     
     if action_type == "open_doc":
-        result = open_doc_handler(payload)
+        result = open_doc_handler(pdf_pages)
     elif action_type == "add_note":
-        result = add_note(payload)
+        result = await add_note(payload)
     elif action_type == "next_section":
-        result = next_section_handler(payload)
+        result = await next_section_handler(pdf_pages, current_page)
     elif action_type == "prev_section":
-        result = previous_section_handler(payload)
+        result = await previous_section_handler(pdf_pages, current_page)
+    elif action_type == "open_note":
+        result = await display_note(payload)
     else:
         result = {
             "status": "unknown_action",
@@ -79,29 +103,15 @@ def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
             "payload": payload,
         }
     
-    # Save conversation to database asynchronously
-    # Note: This is a sync function, so we need to handle async save differently
-    # For now, we'll import asyncio and create a task
+    # Save conversation to database
     if result and session_id_uuid:
-        import asyncio
         ai_response_text = str(result) if not isinstance(result, str) else result
         try:
-            # Try to get or create event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, create a task
-                asyncio.create_task(save_conversation(
-                    user_query=user_message,
-                    ai_response=ai_response_text,
-                    session_id=session_id_uuid
-                ))
-            else:
-                # If no loop is running, run sync
-                loop.run_until_complete(save_conversation(
-                    user_query=user_message,
-                    ai_response=ai_response_text,
-                    session_id=session_id_uuid
-                ))
+            await save_conversation(
+                user_query=user_message,
+                ai_response=ai_response_text,
+                session_id=session_id_uuid
+            )
         except Exception as e:
             logger.error(f"Failed to save action conversation: {str(e)}")
     

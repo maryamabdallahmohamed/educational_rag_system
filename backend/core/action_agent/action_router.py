@@ -1,10 +1,3 @@
-"""
-action_router.py
-
-Backend-ready action router using SUBACTION_ROUTER_PROMPT and GroqLLM.
-Maps messages to concrete action types like "open_doc", "add_note", etc.
-"""
-
 import re
 import json
 from typing import Dict, Any
@@ -81,9 +74,3 @@ def route_action_message(user_message: str) -> Dict[str, Any]:
     }
 
 
-if __name__ == "__main__":
-    while True:
-        text = input("Action command (type 'exit' to quit): ")
-        if text.strip().lower() == "exit":
-            break
-        print(route_action_message(text))

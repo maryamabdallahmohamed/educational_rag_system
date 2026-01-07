@@ -77,79 +77,175 @@ Respond ONLY with JSON.
 """
 
 SUBACTION_ROUTER_PROMPT = """
-You are an action router. Map commands to EXACT action types.
+You are an action router. Map commands to EXACT action types and extract
+required arguments when applicable.
 
-**Supported Actions:**
+Your job is classification — NOT free-form conversation.
 
-ARABIC → ENGLISH MAPPING:
-  • "افتح شات/محادثة جديدة" → "open_chat"
-  • "افتح" + [كتاب/مستند/ملف/دوك/فيزياء/رياضيات/كيمياء/أحياء] → "open_doc"
-  • "اقفل الشات/المحادثة" → "close_chat"  
-  • "اقفل المستند/الدوك/الكتاب" → "close_doc"
-  • "زود/اضف نوتة/ملاحظة" → "add_note"
-  • "افتح النوتة/الملاحظات" → "open_note"
-  • "علم/مارك/بوك مارك" → "bookmark"
-  • "وريني/طلع العلامات" → "show_bookmarks"
-  • "التالي/الجاي/بعد" → "next_section"
-  • "السابق/اللي فات/قبل" → "prev_section"
-  • "انا فين/موقعي ايه/where am I" → "location"
+================================================================
+SUPPORTED ACTIONS
+================================================================
+ARABIC → ENGLISH:
 
-**DETECTION RULES:**
-1. Start with "افتح":
-   - + "شات" → open_chat
-   - + "نوتة/ملاحظات" → open_note
-   - + [مستند/كتاب/فيزياء/رياضيات/etc] → open_doc
-   
-2. Start with "زود/اضف" → add_note
+• "افتح شات/محادثة جديدة"         → open_chat
+• "افتح" + [كتاب/مستند/دوك…]      → open_doc
+• "اقفل الشات/المحادثة"           → close_chat
+• "اقفل المستند/الدوك/الكتاب"     → close_doc
 
-3. Start with "اقفل":
-   - + "شات/محادثة" → close_chat
-   - + [مستند/دوك/كتاب] → close_doc
-   - + "نوتة/ملاحظات" → unknown (not supported)
+• "زود/اضف نوتة/ملاحظة"           → add_note
+• "افتح النوتة/الملاحظات"         → open_note
 
-4. "علم"/"مارك" → bookmark
+• "علم/مارك/بوك مارك"             → bookmark
+• "وريني/طلع العلامات"            → show_bookmarks
 
-5. "وريني/طلع" + "علامات" → show_bookmarks
+• "التالي/الجاي/بعد"              → next_section
+• "السابق/اللي فات/قبل"          → prev_section
 
-6. "انا فين" / "موقعي" → location
+• "انا فين / موقعي ايه"           → location
 
-7. "بعد"/"التالي" → next_section
+If no valid mapping → unknown
 
-8. "قبل"/"السابق" → prev_section
+================================================================
+ADD NOTE — ARGUMENT EXTRACTION RULES
+================================================================
 
-If no match → "unknown"
+When detecting an **add_note** command:
 
-Return JSON:
-{
-    "action_type": "open_chat" | "open_doc" | "close_chat" | "close_doc" | "add_note" | "open_note" | "bookmark" | "show_bookmarks" | "next_section" | "prev_section" | "location" | "unknown",
-    "action_confidence": float (0-1),
-    "action_details": "brief justification"
-}
+You MUST extract:
+
+1) **note_text** (REQUIRED): 
+   The content of the note. 
+   - Extract text inside parentheses `(...)` or quotes `"..."`.
+   - OR extract text following the command verbs ("add note", "زود نوتة").
+   - **CRITICAL**: Remove the page number mention from `note_text`.
+
+2) **page_num** (OPTIONAL):
+   - Extract if user says "page X", "p X", "صفحة X", "ص X".
+   - Convert Arabic numerals (١, ٢, ٣...) to Integers (1, 2, 3...).
 
 Examples:
-User: زود نوته
-{"action_type":"add_note","action_confidence":0.99,"action_details":"أمر إضافة ملاحظة (add note)."}
+
+User: (حلو اوي) زود نوته في صفحة ٨
+-> note_text: "حلو اوي"
+-> page_num: 8
+
+User: Add note "revise this" on page 12
+-> note_text: "revise this"
+-> page_num: 12
+
+User: زود نوتة ذاكر دي كويس
+-> note_text: "ذاكر دي كويس"
+-> page_num: null
+
+If the user requests adding a note BUT no note content is given:
+
+DO NOT emit add_note.
+
+Return:
+action_type = "unknown"
+action_details = "Missing note text — cannot create note."
+
+================================================================
+OUTPUT SCHEMA
+================================================================
+
+Return ONLY JSON:
+
+{
+  "action_type": "open_chat" | "open_doc" | "close_chat" |
+                  "close_doc" | "add_note" | "open_note" |
+                  "bookmark" | "show_bookmarks" |
+                  "next_section" | "prev_section" |
+                  "location" | "unknown",
+
+  "action_confidence": float,
+
+  "action_details": "brief justification",
+
+  "arguments": {
+      "doc_id": string | null,
+      "page_num": int | null,
+      "note_text": string | null
+  }
+  "note_text": string | null
+  "page_num": int | null
+}
+
+================================================================
+CLASSIFICATION RULES
+================================================================
+
+1) Start with "افتح":
+   + شات/محادثة        → open_chat
+   + نوتة/ملاحظات      → open_note
+   + كتاب/مستند/...    → open_doc
+
+2) Start with "زود / اضف / add / حطلي" → add_note
+
+3) Start with "اقفل":
+   + شات/محادثة        → close_chat
+   + مستند/كتاب/دوك    → close_doc
+   + نوتة/ملاحظات      → unknown (unsupported)
+
+4) "علم" / "مارك"         → bookmark
+5) "وريني/طلع العلامات"   → show_bookmarks
+6) "انا فين / موقعي"      → location
+7) "بعد / التالي"         → next_section
+8) "قبل / السابق"         → prev_section
+
+Default fallback → unknown
+
+================================================================
+EXAMPLES
+================================================================
+
+User: (حلو اوي) زود نوته في صفحة ٨
+{
+  "action_type":"add_note",
+  "action_confidence":0.99,
+  "action_details":"Add note on page 8 detected.",
+  "arguments":{
+    "doc_id": null,
+    "page_num": 8,
+    "note_text": "حلو اوي"
+  }
+}
+
+User: زود نوتة
+{
+  "action_type":"unknown",
+  "action_confidence":0.70,
+  "action_details":"Missing note text — cannot create note.",
+  "arguments":{
+    "doc_id": null,
+    "page_num": null,
+    "note_text": null
+  }
+}
 
 User: افتح الفيزياء
-{"action_type":"open_doc","action_confidence":0.97,"action_details":"أمر فتح مستند الفيزياء (open physics document)."}
-
-User: افتح النوتة
-{"action_type":"open_note","action_confidence":0.99,"action_details":"أمر فتح الملاحظات (open notes)."}
+{
+  "action_type":"open_doc",
+  "action_confidence":0.97,
+  "action_details":"Open physics document.",
+  "arguments":{
+    "doc_id": null,
+    "page_num": null,
+    "note_text": null
+  }
+}
 
 User: اقفل المستند
-{"action_type":"close_doc","action_confidence":0.99,"action_details":"أمر إغلاق المستند (close document)."}
-
-User: علم المكان ده
-{"action_type":"bookmark","action_confidence":0.98,"action_details":"أمر وضع علامة (bookmark)."}
-
-User: انا فين؟
-{"action_type":"location","action_confidence":0.99,"action_details":"سؤال عن الموقع الحالي (location)."}
-
-User: open my physics book
-{"action_type":"open_doc","action_confidence":0.98,"action_details":"Command to open physics document."}
-
-User: اقفل النوتة
-{"action_type":"unknown","action_confidence":0.85,"action_details":"Close notes not supported (unsupported action)."}
+{
+  "action_type":"close_doc",
+  "action_confidence":0.99,
+  "action_details":"Close document.",
+  "arguments":{
+    "doc_id": null,
+    "page_num": null,
+    "note_text": null
+  }
+}
 
 User: {user_message}
 Respond ONLY with JSON.
@@ -205,6 +301,9 @@ User: summerzie this
 
 User: what is quantum physics
 {"route":"agents","route_confidence":0.97,"route_details":"Definition/explanation request."}
+User: Generate MCQ questions for the topic .
+{"route":"agents","route_confidence":0.97,"route_details":"Definition/explanation request."}
+
 
 User: {user_message}
 Respond ONLY with JSON.

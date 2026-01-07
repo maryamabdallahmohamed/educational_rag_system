@@ -57,7 +57,7 @@ asr_service = TranscriptionService()
 # In-memory store
 uploaded_documents: Dict[str, Any] = {}
 current_query: Dict[str, Any] = {}
-
+file_paths=[]
 # ===== STT Components =====
 SUPPORTED_AUDIO_FORMATS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".opus"}
 
@@ -119,6 +119,7 @@ async def health() -> dict:
 async def upload_file(file: UploadFile = File(...), session_id: str = Form(None)):
     """Upload and store a document."""
     file_path = f"/tmp/{file.filename}"
+    file_paths.append(file_path)
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
@@ -333,6 +334,8 @@ async def assistant(
             "user_message": message,
             "session_id": session_id,
             "dispatch_action": dispatch_action,
+            "file_paths": file_paths
+
         }
     )
 
