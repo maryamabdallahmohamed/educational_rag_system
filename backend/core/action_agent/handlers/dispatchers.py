@@ -14,7 +14,9 @@ from backend.core.action_agent.handlers.actions.open_doc import open_doc_handler
 from backend.core.action_agent.handlers.actions.prev_section import previous_section_handler
 from backend.utils.logger_config import get_logger
 from backend.utils.conversation_utils import save_conversation
-
+import os
+from pdf2image import convert_from_path
+from tqdm.asyncio import tqdm
 logger = get_logger("dispatcher")
 
 # Singleton instances - will be set from main.py
@@ -37,7 +39,24 @@ def init_dispatchers(qa_node, summarization_node, cpa_agent, tutor_agent, upload
     _current_query = current_query
     logger.info("Dispatchers initialized with shared instances")
 
+def load_pdf(path: str, dpi: int = 300) -> list:
+    """
+    Converts a PDF or a folder of PDFs to a list of PIL Images.
+    """
+    images = []
+    if os.path.isfile(path):
+        if path.lower().endswith('.pdf'):
+            images.extend(convert_from_path(path, dpi=dpi))
+    elif os.path.isdir(path):
+        for pdf_file in tqdm(os.listdir(path), desc="Converting PDFs"):
+            if pdf_file.lower().endswith('.pdf'):
+                pdf_path = os.path.join(path, pdf_file)
+                images.extend(convert_from_path(pdf_path, dpi=dpi))   
+    print(f"\n✅ PDF Conversion complete! Loaded {len(images)} pages.")
+    return images
 
+
+current_page = 0
 async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called when intent_type == 'action'.
@@ -52,8 +71,10 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     action_type = payload.get("action_type")
     user_message = payload.get("user_message", "")
     session_id = payload.get("session_id")
-    
-    # Convert session_id to UUID if it's a string
+    file_paths = payload.get("file_paths", None)    
+    pdf_pages = load_pdf(file_paths) if file_paths else None
+
+
     if session_id and isinstance(session_id, str):
         try:
             session_id_uuid = UUID(session_id)
@@ -66,13 +87,13 @@ async def dispatch_action(payload: Dict[str, Any]) -> Dict[str, Any]:
     result = None
     
     if action_type == "open_doc":
-        result = open_doc_handler(payload)
+        result = open_doc_handler(pdf_pages)
     elif action_type == "add_note":
         result = await add_note(payload)
     elif action_type == "next_section":
-        result = await next_section_handler(payload)
+        result = await next_section_handler(pdf_pages, current_page)
     elif action_type == "prev_section":
-        result = await previous_section_handler(payload)
+        result = await previous_section_handler(pdf_pages, current_page)
     elif action_type == "open_note":
         result = await display_note(payload)
     else:

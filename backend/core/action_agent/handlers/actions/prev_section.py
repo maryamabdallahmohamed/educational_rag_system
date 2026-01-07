@@ -7,87 +7,54 @@ from backend.database.db import NeonDatabase
 from backend.utils.logger_config import get_logger
 import os
 import re
+import io
+import base64
+
 logger = get_logger("PreviousSectionHandler")
 
-async def _get_previous_section(doc_id: str, current_page: str):
-    try:
-        async with NeonDatabase.get_session() as session:
-            chunk_repo = ChunkRepository(session)
-            doc_repo = DocumentRepository(session)
-            logger.info(f"Fetching previous section for document {doc_id} and page {current_page}")
-            try:
-                prev_page_num = int(current_page) - 1
-                prev_page = str(prev_page_num)
-            except ValueError:
-                return None, None, "Invalid page number format"
-
-            doc = await doc_repo.get(doc_id)
-            logger.info(f"Document {doc_id} fetched successfully")
-            if not doc:
-                return None, None, "Document not found"
-            
-            max_page = max(int(k) for k in doc.content.keys())
-            logger.info(f"Max page for document {doc_id} is {max_page}")
-            if prev_page_num < 1:
-                return None, str(max_page), "End of document reached"
-            chunks = await chunk_repo.get_by_document_and_page(doc_id, prev_page)
-            logger.info(f"Previous section for document {doc_id} and page {current_page} fetched successfully")
-            return chunks, prev_page, None
-    except Exception as e:
-        logger.error(f"Error fetching previous section for document {doc_id} and page {current_page}: {str(e)}")
-        return None, None, str(e)
 
 
-
-async def previous_section_handler(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def previous_section_handler(pdf_pages: List, current_page: int) -> Dict[str, Any]:
     """
-    Handler for 'previous_section' action.
-    Decrements page number and fetches chunks for the previous page of the specified document.
-    Ensures document-page coherence by filtering by both document_id and page.
+    Handler for 'prev_section' action.
+    Decrements page number and returns the previous page as a base64 encoded image.
     """
-    doc_id = payload.get("document_id")
-    current_page = payload.get("current_page")
-    
-    if not doc_id or current_page is None:
-         return {
-             "status": "error", 
-             "message": "Missing document_id or current_page in payload",
-             "action": "previous_section"
-         }
-
     try:
-        chunks, prev_page, error_msg = await _get_previous_section(doc_id, str(current_page))
-        
-        if error_msg:
+        if not pdf_pages:
              return {
-                "status": "error" if "End" not in error_msg else "limit_reached",
-                "action": "previous_section",
-                "message": error_msg,
-                "document_id": doc_id,
-                "page": prev_page 
+                "status": "error",
+                "message": "No document loaded or pages available",
+                "action": "prev_section"
             }
 
-        if chunks:
-            chunk_data = [{"id": str(c.id), "content": c.content} for c in chunks]
+        prev_page = current_page - 1
+        if prev_page < 1:
             return {
-                "status": "ok",
-                "action": "previous_section",
-                "document_id": doc_id,
-                "page": prev_page,
-                "chunks": chunk_data
+                "status": "start_of_document",
+                "message": "Start of document reached",
+                "action": "prev_section"
             }
-        else:
-            return {
-                "status": "empty",
-                "action": "previous_section",
-                "message": "No chunks found for previous page.",
-                "document_id": doc_id,
-                "page": prev_page
-            }
-            
+
+        page_image = pdf_pages[prev_page - 1]
+        
+        # Convert PIL Image to Base64
+        img_byte_arr = io.BytesIO()
+        page_image.save(img_byte_arr, format='JPEG')
+        img_byte_arr = img_byte_arr.getvalue()
+        base64_encoded = base64.b64encode(img_byte_arr).decode('utf-8')
+        
+        logger.info(f"Previous section for page {prev_page} fetched successfully")
+        return {
+            "status": "success",
+            "page_number": prev_page,
+            "image": base64_encoded,
+            "action": "prev_section"
+        }
     except Exception as e:
+        logger.error(f"Error fetching previous section for page {current_page}: {str(e)}")
         return {
             "status": "error",
-            "action": "previous_section",
-            "message": str(e)
+            "message": str(e),
+            "action": "prev_section"
         }
+
